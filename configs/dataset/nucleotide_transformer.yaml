@@ -1,0 +1,119 @@
+_name_: nucleotide_transformer  # this links to the overall SequenceDataset of all nucleotide transformer datasets
+dataset_name: enhancer  # this specifies which dataset in nuc trx
+dest_path: null  # path to overall nuc trx datasets
+max_length: ${.${.dataset_name}.max_length}
+d_output: ${.${.dataset_name}.classes} 
+use_padding: True
+padding_side: left
+add_eos: False
+batch_size: 32
+train_len: ${.${.dataset_name}.train_len}
+__l_max: ${.max_length}
+shuffle: true  # set this as default!
+metric: ${.${.dataset_name}.metric}
+# these are used to find the right attributes automatically for each dataset
+enhancer:
+  train_len: 14968
+  classes: 2
+  max_length: 200
+  metric: mcc
+enhancer_types:
+  train_len: 14968
+  classes: 3
+  max_length: 200
+  metric: mcc
+H3:
+  train_len: 13468
+  classes: 2
+  max_length: 500
+  metric: mcc
+H3K4me1:
+  train_len: 28509
+  classes: 2
+  max_length: 500
+  metric: mcc
+H3K4me2:
+  train_len: 27614
+  classes: 2
+  max_length: 500
+  metric: mcc
+H3K4me3:
+  train_len: 33119
+  classes: 2
+  max_length: 500
+  metric: mcc
+H3K9ac:
+  train_len: 25003
+  classes: 2
+  max_length: 500
+  metric: mcc
+H3K14ac:
+  train_len: 29743
+  classes: 2
+  max_length: 500
+  metric: mcc
+H3K36me3:
+  train_len: 31392
+  classes: 2
+  max_length: 500
+  metric: mcc
+H3K79me3:
+  train_len: 25953
+  classes: 2
+  max_length: 500
+  metric: mcc
+H4:
+  train_len: 13140
+  classes: 2
+  max_length: 500
+  metric: mcc
+H4ac:
+  train_len: 30685
+  classes: 2
+  max_length: 500
+  metric: mcc
+promoter_all:
+  train_len: 53276
+  classes: 2
+  max_length: 300
+  metric: f1_binary
+promoter_non_tata:
+  train_len: 47759
+  classes: 2
+  max_length: 300
+  metric: f1_binary
+promoter_tata:
+  train_len: 5517
+  classes: 2
+  max_length: 300
+  metric: f1_binary
+splice_sites_acceptor:
+  train_len: 19961
+  classes: 2
+  max_length: 600
+  metric: f1_binary
+splice_sites_donor:
+  train_len: 19775
+  classes: 2
+  max_length: 600
+  metric: f1_binary
+
+# name maxlen classes samples metric
+
+# enhancer 200   2  14968 MCC
+# enhancer_types 200   3  14968 MCC
+# H3 500   2  13468 MCC
+# H3K4me1  500   2  28509 MCC
+# H3K4me2  500   2  27614 MCC
+# H3K4me3  500   2  33119 MCC
+# H3K9ac   500   2  25003 MCC
+# H3K14ac  500   2  29743 MCC
+# H3K36me3 500   2  31392 MCC
+# H3K79me3 500   2  25953 MCC
+# H4 500   2  13140 MCC
+# H4ac  500   2  30685 MCC
+# promoter_all   300   2  53276 F1
+# promoter_non_tata 300   2  47759 F1
+# promoter_tata  300   2  5517  F1
+# splice_sites_acceptor   600   2  19961 F1
+# splice_sites_donor   600   2  19775 F1

@@ -1,0 +1,68 @@
+# @package _global_
+defaults:
+  - /pipeline: hg38
+  - override /dataset: hg38_fixed_test
+  - override /scheduler: cosine_warmup_timm
+
+model:
+  _name_: lm
+  d_model: 32
+  n_layer: 2
+  d_inner: ${eval:4 * ${.d_model}}
+  vocab_size: 12
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  attn_layer_idx: [0,1,2,3,4,5,6,7,8,9,10,11]  # if passing these attn flags, then MHA auto used
+  attn_cfg:
+    num_heads: 8
+    use_flash_attn: True  # figure out how to use
+    fused_bias_fc: False  # this doesn't work for some reason, loss not going down
+    dropout: 0.1
+    # rotary_emb_dim: 16  # option to use this instead of learned pos emb
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: False
+  checkpoint_mixer: False  # set true for memory reduction
+  checkpoint_mlp: False  # set true for memory reduction
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  max_position_embeddings: ${dataset.max_length}
+
+task:
+  _name_: lm
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
+  max_epochs: 100
+  precision: 16  # bf16 only a100
+  gradient_clip_val: 1.0
+  # strategy: null
+
+dataset:
+  # batch_size: 32  # Per GPU
+  batch_size: 256
+  max_length: 1024 # 262144, 524288
+  pad_max_length: null
+  add_eos: true
+  rc_aug: false
+  num_workers: 12
+
+scheduler:
+  t_in_epochs: False
+  t_initial: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs}}
+  warmup_lr_init: 1e-6
+  warmup_t: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs} * 0.01}
+  lr_min: ${eval:0.1 * ${optimizer.lr}}
+
+optimizer:
+  lr: 6e-4
+  weight_decay: 0.1
+
+train:
+  gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
+  seed: 2222
+  global_batch_size: 256  # effects the scheduler, need to set properly
+  test: true  # need this
+  remove_val_loader_in_eval: true

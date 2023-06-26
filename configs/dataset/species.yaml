@@ -1,0 +1,22 @@
+_name_: species
+dataset_name: species
+species_dir: '/local-scratch/nigam/projects/mwornow/projects/safari-internal/data/species'
+species: [chimpanzee,hippo]
+total_size: 5000
+max_length: 1024
+species_weights: uniform
+chromosome_weights: uniform
+task: species_classification
+tokenizer_name: char
+cache_dir: null
+add_eos: True
+batch_size: 1 # per GPU
+batch_size_eval: ${eval:${.batch_size} * 2}
+num_workers: 4  # For preprocessing only
+shuffle: True
+pin_memory: True
+__train_len: ${.total_size}
+__l_max: ${.max_length}
+use_padding: True
+padding_side: 'left'
+rc_aug: False

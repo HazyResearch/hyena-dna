@@ -1,0 +1,41 @@
+model:
+  _name_: lm
+  d_model: 256
+  n_layer: 8
+  d_inner: 1024  # ${eval:4 * ${.d_model}}
+  vocab_size: 12
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: True
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  return_hidden_state: True  # in 2nd position of output tuple (1st is logits)
+  checkpoint_mixer: False
+  checkpoint_mlp: False
+  layer:
+    _name_: hyena
+    emb_dim: 5
+    filter_order: 64
+    local_order: 3
+    l_max: 160_002  # add 2 for ckpt
+    modulate: True
+    w: 10
+    lr: 6e-4
+    wd: 0.0
+    lr_pos_emb: 0.0
+
+train:
+  d_output: 2  # number of classes
+
+dataset:
+  dataset_name: human_nontata_promoters
+  max_length: 256
+  d_output: 2  # num classes
+  train_len: 36131
+  tokenizer_name: char
+  batch_size: 128  # Per GPU
+  rc_aug: false
+  shots: 5
+
+  # human_nontata_promoters             36131           2               251           0

@@ -1,0 +1,26 @@
+model_name: hyena-small
+tokenizer_name: char
+model_config:
+  _name_: lm
+  d_model: 256
+  n_layer: 8
+  d_inner: 1024  # ${eval:4 * ${.d_model}}
+  vocab_size: 12
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: True
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  return_hidden_state: True  # in 2nd position of output tuple (1st is logits)
+  layer:
+    _name_: hyena
+    emb_dim: 5
+    filter_order: 64
+    local_order: 3
+    l_max: 1026  # add 2 for ckpt
+    modulate: True
+    w: 10
+    lr: 6e-4
+    wd: 0.0
+    lr_pos_emb: 0.0

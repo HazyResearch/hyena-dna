@@ -1,0 +1,48 @@
+_name_: genomic_benchmark
+dataset_name: dummy_mouse_enhancers_ensembl
+dest_path: null
+max_length: 1024
+d_output: ${.${.dataset_name}.classes}
+use_padding: True
+padding_side: 'left'
+add_eos: False
+batch_size: 32
+train_len: ${.${.dataset_name}.train_len}
+__l_max: ${.max_length}
+shuffle: true  # set this as default!
+# these are used to find the right attributes automatically for each dataset
+dummy_mouse_enhancers_ensembl:
+  train_len: 1210
+  classes: 2
+demo_coding_vs_intergenomic_seqs:
+  train_len: 100_000
+  classes: 2
+demo_human_or_worm:
+  train_len: 100_000
+  classes: 2
+human_enhancers_cohn:
+  train_len: 27791
+  classes: 2
+human_enhancers_ensembl:
+  train_len: 154842
+  classes: 2
+human_ensembl_regulatory:
+  train_len: 289061
+  classes: 3
+human_nontata_promoters:
+  train_len: 36131
+  classes: 2
+human_ocr_ensembl:
+  train_len: 174756
+  classes: 2
+
+# there are 8 datasets in this suite, choose 1 at a time, with their corresponding settings
+# name                                num_seqs        num_classes     median len    std
+# dummy_mouse_enhancers_ensembl       1210            2               2381          984.4  
+# demo_coding_vs_intergenomic_seqs    100_000         2               200           0
+# demo_human_or_worm                  100_000         2               200           0
+# human_enhancers_cohn                27791           2               500           0
+# human_enhancers_ensembl             154842          2               269           122.6
+# human_ensembl_regulatory            289061          3               401           184.3
+# human_nontata_promoters             36131           2               251           0
+# human_ocr_ensembl                   174756          2               315           108.1

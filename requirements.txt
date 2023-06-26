@@ -1,0 +1,31 @@
+numpy
+scipy
+pandas
+scikit-learn
+matplotlib
+tqdm
+rich
+pytorch-lightning==1.8.6
+hydra-core
+omegaconf
+wandb
+einops
+opt_einsum
+cmake # For pykeops support
+# pykeops # Only for S4D. If there are installation problems with pykeops==2.x, try pykeops==1.5
+transformers # For some schedulers
+torchvision
+timm
+prettytable
+numerize
+
+# Dataset specific packages
+torchtext==0.14.0 # LRA
+datasets # LRA
+
+# genomic specific
+pyfaidx
+polars
+genomic-benchmarks
+loguru
+liftover

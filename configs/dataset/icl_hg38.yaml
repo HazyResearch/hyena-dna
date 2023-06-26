@@ -1,0 +1,17 @@
+_name_: icl_hg38
+bed_file: '/home/workspace/eric/safari-internal/data/hg38/human-sequences.bed'
+fasta_file: '/home/workspace/eric/safari-internal/data/hg38/hg38.ml.fa'
+dataset_name: icl_hg38
+tokenizer_name: null
+cache_dir: null
+min_length: 128
+max_length: 1024
+variable_length: True
+add_eos: False
+batch_size: 8  # per GPU
+batch_size_eval: ${eval:${.batch_size} * 2}
+num_workers: 4  # For preprocessing only
+shuffle: True
+pin_memory: True
+__train_len: ${div_up:1_000_000_000, ${.max_length}}
+__l_max: ${.max_length}

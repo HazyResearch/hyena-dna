@@ -1,0 +1,97 @@
+# @package _global_
+defaults:
+  - /pipeline: genomic_benchmark
+  - override /scheduler: cosine_warmup_timm
+
+# there are 8 datasets in this suite, choose 1 at a time, with their corresponding settings
+# name                                num_seqs        num_classes     median len    std
+# dummy_mouse_enhancers_ensembl       1210            2               2381          984.4  
+# demo_coding_vs_intergenomic_seqs    100_000         2               200           0
+# demo_human_or_worm                  100_000         2               200           0
+# human_enhancers_cohn                27791           2               500           0
+# human_enhancers_ensembl             154842          2               269           122.6
+# human_ensembl_regulatory            289061          3               401           184.3
+# human_nontata_promoters             36131           2               251           0
+# human_ocr_ensembl                   174756          2               315           108.1
+
+
+model:
+  _name_: dna_embedding
+  d_model: 128
+  n_layer: 2
+  d_inner: ${eval:4 * ${.d_model}}
+  vocab_size: 12
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  attn_layer_idx: [0, 1, 2, 3]  # if passing these attn flags, then MHA auto used
+  attn_cfg:
+    num_heads: 1
+    use_flash_attn: True  # figure out how to use
+    fused_bias_fc: False
+    dropout: 0.1
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: True
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  layer: null
+  max_position_embeddings: ${dataset.max_length}  # if using pretrained model, needs to be the same
+    # _name_: hyena
+    # emb_dim: 5
+    # filter_order: 64
+    # local_order: 3
+    # l_max: 1026  # required to be set the same as the pretrained model if using, don't forget the +2!  ${eval:${dataset.max_length}+2}
+    # modulate: True
+    # w: 10
+    # lr: ${optimizer.lr}
+    # wd: 0.0
+    # lr_pos_emb: 0.0
+
+task:
+  # 2 options for soft_cross_entropy (for mixup)
+  loss:
+    # soft_cross_entropy for pytorch 1.10+, which takes in label_smoothing here
+    _name_: cross_entropy
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
+  max_epochs: 100
+  precision: 16  # bf16 only a100
+  gradient_clip_val: 1.0
+  # strategy: null
+
+dataset:
+  # batch_size: 32  # Per GPU
+  batch_size: 128
+  max_length: 1024 # 262144, 524288
+  # optional, default is max_length
+  # max_length_val: ${dataset.max_length}
+  # max_length_test: ${dataset.max_length}
+  tokenizer_name: char
+  # add_eos: true
+  rc_aug: false  # reverse complement augmentation
+
+scheduler:
+  t_in_epochs: False
+  t_initial: ${eval:${div_up:${dataset.train_len}, ${train.global_batch_size}} * ${trainer.max_epochs}}
+  warmup_lr_init: 1e-6
+  warmup_t: ${eval:${div_up:${dataset.train_len}, ${train.global_batch_size}} * ${trainer.max_epochs} * 0.01}
+  lr_min: ${eval:0.1 * ${optimizer.lr}}
+
+optimizer:
+  lr: 6e-3
+  weight_decay: 0.
+
+train:
+  gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
+  seed: 2222
+  global_batch_size: ${dataset.batch_size}
+  remove_test_loader_in_eval: true  # no test set in this benchmark
+  pretrained_model_strict_load: False  # false allows encoder/decoder to be used if new model uses it
+  # for loading backbone and not head, requires both of these flags below
+  pretrained_model_path: /home/workspace/eric/safari-internal/outputs/2023-04-27/21-13-10-115246/checkpoints/val/loss.ckpt
+  pretrained_model_state_hook:
+    _name_: load_backbone
+    freeze_backbone: false  # seems to work much better if false (ie finetune entire model)

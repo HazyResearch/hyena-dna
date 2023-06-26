@@ -1,0 +1,80 @@
+# @package _global_
+defaults:
+  - /pipeline: hg38
+  - override /scheduler: cosine_warmup_timm
+  - override /dataset: icl_hg38  # modified version of hg38 sampling, appends <sep> and cls token
+
+model:
+  _name_: lm
+  d_model: 128
+  n_layer: 2
+  d_inner: ${eval:4 * ${.d_model}}
+  vocab_size: 36  # for chromosomes we add 24 more. (previously 12)
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: False
+  checkpoint_mixer: False  # set true for memory reduction
+  checkpoint_mlp: False  # set true for memory reduction
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  layer:
+    _name_: hyena
+    emb_dim: 5
+    filter_order: 64
+    local_order: 3
+    l_max: ${eval:${dataset.max_length}+2}
+    modulate: True
+    w: 10
+    lr: ${optimizer.lr}
+    wd: 0.0
+    lr_pos_emb: 0.0
+
+task:
+  _name_: hg38  # equivalent to lm task, plus allows extra metrics to be calculated
+  # 2 options for soft_cross_entropy (for mixup)
+  # loss:
+  #   _name_: cross_entropy
+  loss:
+    _name_: cross_entropy  # used to ignore pad value/positions in labels
+    ignore_index: 4  #  as noted in CharTokenizer
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
+  max_epochs: 100
+  precision: 16  # bf16 only a100
+  gradient_clip_val: 1.0
+  # strategy: null
+
+dataset:
+  # batch_size: 32  # Per GPU
+  batch_size: 256
+  min_length: 100
+  max_length: 1024 # 262144, 524288
+  # optional, default is max_length
+  max_length_val: ${dataset.max_length}
+  max_length_test: ${dataset.max_length}
+  tokenizer_name: char
+  pad_max_length: null  # needed for bpe tokenizer
+  add_eos: true
+  rc_aug: false
+  num_workers: 12
+
+scheduler:
+  t_in_epochs: False
+  t_initial: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs}}
+  warmup_lr_init: 1e-6
+  warmup_t: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs} * 0.01}
+  lr_min: ${eval:0.1 * ${optimizer.lr}}
+
+optimizer:
+  lr: 6e-4
+  weight_decay: 0.1
+
+train:
+  gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
+  seed: 2222
+  global_batch_size: 256  # effects the scheduler, need to set properly

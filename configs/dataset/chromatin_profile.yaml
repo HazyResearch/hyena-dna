@@ -1,0 +1,12 @@
+_name_: chromatin_profile
+dataset_name: chromatin_profile
+ref_genome_path: '/home/callum/private/hyena/build-deepsea-training-dataset/hg19/hg19.fa'
+ref_genome_version: 'hg19'
+data_path: '/home/callum/private/hyena/safari-internal-inf/data/chromatin_profile/'
+max_length: 1024
+d_output: 919 
+use_padding: True
+padding_side: 'left'
+add_eos: False
+__l_max: ${.max_length}
+shuffle: true  # set this as default!

@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: default
+  - /dataset: species
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /callbacks: [base, checkpoint]
+
+train:
+  monitor: val/accuracy # Needed for plateau scheduler
+  mode: max
+
+encoder: id
+
+# we need this for classification!
+decoder:
+  _name_: sequence
+  mode: pool

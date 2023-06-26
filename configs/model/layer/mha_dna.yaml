@@ -1,0 +1,7 @@
+# _name_: mha_dna
+num_heads: 1
+causal: True
+use_flash_attn: True
+fused_bias_fc: True
+# device: 'cuda'
+# dtype: tensor.float16

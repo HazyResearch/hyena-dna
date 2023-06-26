@@ -1,0 +1,6 @@
+# _target_: tasks.tasks.MultiClass
+_name_: multiclass
+loss: cross_entropy
+metrics:
+  - accuracy
+torchmetrics: null

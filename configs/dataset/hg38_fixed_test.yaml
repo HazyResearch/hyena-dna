@@ -1,0 +1,12 @@
+_name_: hg38_fixed
+fasta_file: null
+chr_ranges: null
+pad_max_length: ${.max_length}
+max_length: 1024
+add_eos: True
+batch_size: 8  # per GPU
+num_workers: 4  # For preprocessing only
+shuffle: False
+pin_memory: True
+__train_len: ${div_up:1_000_000_000, ${.max_length}}
+__l_max: ${.max_length}

@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: default
+  - /dataset: nucleotide_transformer
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /callbacks: [base, checkpoint]
+
+task:
+  loss:
+    _name_: cross_entropy
+  metrics:
+    - ${dataset.metric}
+
+train:
+  monitor: val/${dataset.metric}
+  mode: max
+
+encoder: id
+
+# we need this for classification!
+decoder:
+  _name_: sequence
+  mode: pool

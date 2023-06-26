@@ -1,0 +1,71 @@
+model:
+  _name_: lm
+  d_model: 128
+  n_layer: 2
+  d_inner: 512  # ${eval:4 * ${.d_model}}
+  vocab_size: 12
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: True
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  return_hidden_state: True  # in 2nd position of output tuple (1st is logits)
+  layer:
+    _name_: hyena
+    emb_dim: 5
+    filter_order: 64
+    local_order: 3
+    l_max: 1026  # add 2 for ckpt
+    modulate: True
+    w: 10
+    lr: 6e-4
+    wd: 0.0
+    lr_pos_emb: 0.0
+
+train:
+  d_output: 2  # number of classes
+
+dataset:
+  dataset_name: enhancer # human_enhancers_cohn
+  max_length: 500
+  d_output: 2  # num classes
+  train_len: 14968
+  tokenizer_name: char
+  batch_size: 128  # Per GPU
+
+
+
+# we need to set the correct config for the dataset
+
+# Genomic Benchmark
+# there are 8 datasets in this suite, choose 1 at a time, with their corresponding settings
+# name                                num_seqs        num_classes     median len    std
+# dummy_mouse_enhancers_ensembl       1210            2               2381          984.4  
+# demo_coding_vs_intergenomic_seqs    100_000         2               200           0
+# demo_human_or_worm                  100_000         2               200           0
+# human_enhancers_cohn                27791           2               500           0
+# human_enhancers_ensembl             154842          2               269           122.6
+# human_ensembl_regulatory            289061          3               401           184.3
+# human_nontata_promoters             36131           2               251           0
+# human_ocr_ensembl                   174756          2               315           108.1
+
+# Nucleotide Transformer
+# name, max_len, d_output (classes), train_len
+# enhancer 200 2 14968   # binary
+# enhancer_types 200 3 14968
+# H3 500 2 13468
+# H3K4me1 500 2 28509
+# H3K4me2 500 2 27614
+# H3K4me3 500 2 33119
+# H3K9ac 500 2 25003
+# H3K14ac 500 2 29743
+# H3K36me3 500 2 31392
+# H3K79me3 500 2 25953
+# H4 500 2 13140
+# H4ac 500 2 30685
+# promoter_all 300 2 53276
+# promoter_non_tata 300 2 47759
+# promoter_tata 300 2 5517
+# splice_sites_acceptor 600 2 19961
+# splice_sites_donor 600 2 19775
