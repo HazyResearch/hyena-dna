@@ -25,11 +25,11 @@ Credit: much of the code is forked and extended from [S4](https://github.com/Haz
 
 Check these out :)  There are different model sizes, and different training sequence lengths that they can handle up to. All pretrained on a single human reference genome (hg38).
 
-- [tiny-1k](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen/main)
+- [tiny-1k](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen/tree/main)
 - [small-32k](https://huggingface.co/LongSafari/hyenadna-small-32k-seqlen/tree/main)
 - [medium-160k](https://huggingface.co/LongSafari/hyenadna-medium-160k-seqlen/tree/main)
 - [medium-450k](https://huggingface.co/LongSafari/hyenadna-medium-450k-seqlen/tree/main)
-- [large-1m](https://huggingface.co/LongSafari/hyenadna-large-1m-seqlen/main)
+- [large-1m](https://huggingface.co/LongSafari/hyenadna-large-1m-seqlen/tree/main)
 
 There's a few way to use these HuggingFace weights, all with different flavors:
 
