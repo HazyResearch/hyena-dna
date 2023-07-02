@@ -32,6 +32,8 @@ Check these out :)  There are different model sizes, and different training sequ
 - [medium-450k](https://huggingface.co/LongSafari/hyenadna-medium-450k-seqlen/tree/main)
 - [large-1m](https://huggingface.co/LongSafari/hyenadna-large-1m-seqlen/tree/main)
 
+See the suggested [GPU requirements](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen#hardware) for each model.
+
 There's a few way to use these HuggingFace weights, all with different flavors:
 
 1. [colab](https://colab.research.google.com/drive/1wyVEQd4R3HYLTUOXEEQmp_I8aNC_aLhL?usp=sharing)  
