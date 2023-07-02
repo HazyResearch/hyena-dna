@@ -77,24 +77,6 @@ class RecallPerClass(CorrectAggregatedMetric):
         numerator += (preds[relevant_idxs] == y[relevant_idxs]).sum()
         denominator += relevant_idxs.sum()
         return numerator, denominator
-    
-def per_token_ppl(logits, y, ks, seq_len):
-    '''The only difference here (with standard ppl) is no averaging across the seq
-    
-    logits: model preds, shape [B * seq_len, vocab_size]
-    y: targets, shape [B * seq_len]
-    ks: list[ints], of indexes for token of interest (to grab the ppl)
-    seq_len: int, sequence length
-
-    '''
-
-    # not averaged
-    ppl_per = torch.exp(F.cross_entropy(logits, y, reduction='none'))
-    ppl = ppl_per.view(-1, seq_len)  # reshape to get seq len
-
-    k_tensor = torch.tensor(ks) - 1 # we need to convert to 0 index in the background
-
-    return torch.mean(ppl[:, k_tensor], dim=0).cpu().detach().numpy()  # grab kth entry and average across batch
 
 
 def mcc(logits, y):
@@ -102,92 +84,6 @@ def mcc(logits, y):
     y = y.view(-1)
     y_hat = torch.argmax(logits, dim=-1)
     return matthews_corrcoef(y.cpu().numpy(), y_hat.cpu().numpy())
-
-
-def multinomial_nll(logits, true_counts):
-    """Compute the multinomial negative log-likelihood
-    Args:
-        logits: predicted logits values [B, 5000, 2]
-        true_counts: observed count values [B, 5000, 2]
-    """
-
-    counts_per_example = torch.sum(true_counts, dim=-1)  # sum across L, shape = [B, 1, 2]
-
-    # breakpoint()
-
-    # distr = dist.Multinomial(total_count=counts_per_example, logits=logits)
-
-    distr = dist.Multinomial(total_count=counts_per_example.max().item(), logits=logits)
-    
-
-    return -torch.sum(distr.log_prob(true_counts)) / torch.tensor(true_counts.shape[0], dtype=torch.float16)
-
-    # counts_per_example = torch.sum(true_counts, dim=-1)
-    # dist = dist.Multinomial(total_count=counts_per_example,
-    #                         logits=logits)
-    # return (-torch.sum(dist.log_prob(true_counts)) / 
-    #         torch.tensor(true_counts.shape[0], dtype=torch.float32))
-
-
-def splice_top_k_acc(logits, targets, pad_mask, k_class=1):
-    """
-
-    Calculate top accuracy for kth class
-    
-    By default, there are 3 classes for splice prediction
-    0 - no splice
-    1 - start splice
-    2 - end splice
-
-    logits: (batch_size, seq_len, num_classes)
-    targets: (batch_size, seq_len), --> note, they are not one-hot encoded yet
-    pad_mask: (batch_size, seq_len)
-    k_class: int, class we're calculating top k acc for
-
-    """
-
-    num_classes = 3
-
-    # convert targets to one-hot
-    targets_onehot = F.one_hot(targets, num_classes=num_classes).float()
-
-    # retrieve the k_class logits and targets
-    logits_i = logits[:, :, k_class]
-    targets_i = targets_onehot[:, :, k_class]  # shape is now (batch_size, seq_len)
-
-    pred_probs, labels = map(lambda x: x.view(-1), [logits_i, targets_i])  # Flatten
-    k = (labels == 1.0).sum().item()  # grab positions in labels that are 1
-
-    _, top_k_indices = pred_probs.topk(k)  # grab predictions at the k positions
-    correct = labels[top_k_indices] == 1.0  # compare if the predictions are correct (for this k_class only)
-
-    return correct.float().mean()
-
-
-def bpnet_loss(logits, y):
-    '''Calculate loss for:
-    
-    logits: (profile_logits, count_logits)
-    y: (y_profile, y_count)
-
-    1. profile logits and y_profile, using multinomial_nll loss
-    2. count logits and y_count, using MSE loss
-
-    and sum the two losses
-
-    '''
-
-    profile_logits, count_logits = logits
-    y_profile, y_count = y
-
-    # profile loss
-    profile_loss = multinomial_nll(profile_logits, y_profile)
-
-    # count loss
-    count_loss = mse(count_logits, y_count)
-
-    return profile_loss + count_loss
-    
 
 
 def last_k_ppl(logits, y, seq_len=1024, k=None):
@@ -444,25 +340,7 @@ output_metric_fns = {
     "soft_cross_entropy": soft_cross_entropy,  # only for pytorch 1.10+
     "student_t": student_t_loss,
     "gaussian_ll": gaussian_ll_loss,
-    "last_k_ppl": last_k_ppl,
-    "bpnet_loss": bpnet_loss,
-    "per_token_ppl": per_token_ppl,
-    'splice_top_1_acc': partial(splice_top_k_acc, k_class=1),
-    'splice_top_2_acc': partial(splice_top_k_acc, k_class=2),
 }
-
-try:
-    from segmentation_models_pytorch.utils.functional import iou
-    from segmentation_models_pytorch.losses.focal import focal_loss_with_logits
-
-    def iou_with_logits(pr, gt, eps=1e-7, threshold=None, ignore_channels=None):
-        return iou(pr.sigmoid(), gt, eps=eps, threshold=threshold, ignore_channels=ignore_channels)
-
-    output_metric_fns["iou"] = partial(iou, threshold=0.5)
-    output_metric_fns["iou_with_logits"] = partial(iou_with_logits, threshold=0.5)
-    output_metric_fns["focal_loss"] = focal_loss_with_logits
-except ImportError:
-    pass
 
 loss_metric_fns = {
     "loss": loss,

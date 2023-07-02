@@ -6,6 +6,7 @@
 - [arxiv](https://arxiv.org/abs/2306.15794)  
 - [blog](https://hazyresearch.stanford.edu/blog/2023-06-29-hyena-dna)
 - [colab](https://colab.research.google.com/drive/1wyVEQd4R3HYLTUOXEEQmp_I8aNC_aLhL?usp=sharing)  
+- [huggingface](https://huggingface.co/LongSafari)
 
 ## Intro
 

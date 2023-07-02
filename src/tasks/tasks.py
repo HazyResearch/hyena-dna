@@ -180,16 +180,6 @@ class LMTask(BaseTask):
 
         return x, y, w
 
-class SpliceTask(BaseTask):
-    def forward(self, batch, encoder, model, decoder, _state):
-        """Passes a batch through the encoder, backbone, and decoder"""
-        # z holds arguments such as sequence length
-        x, y, pad_mask = batch # z holds extra dataloader info such as resolution
-        x, state = model(x, state=_state)
-        x, w = decoder(x, state=state)
-
-        # x = x.logits  # if using dna_embedding model, logits already passed
-        return x, y, {"pad_mask": pad_mask}  # expects a dict for the 3rd element
 
 class MultiClass(BaseTask):
     
@@ -319,136 +309,6 @@ class HG38Task(LMTask):
         return {**output_metrics, **loss_metrics}
 
 
-class BPNetTask(BaseTask):
-
-    # def __init__(self, dataset=None, model=None, loss=None, loss_val=None, metrics=None, torchmetrics=None):
-    #     """ Extending LMTask to add custom metrics for HG38 task 
-
-    #     """
-
-    def forward(self, batch, encoder, model, decoder, _state):
-        """Passes a batch through the encoder, backbone, and decoder"""
-        # z holds arguments such as sequence length
-        x, y, *z = batch # z holds extra dataloader info such as resolution
-        if len(z) == 0:
-            z = {}
-        else:
-            assert len(z) == 1 and isinstance(z[0], dict), "Dataloader must return dictionary of extra arguments"
-            z = z[0]
-
-        profile_x, count_x = model(x)  # has 2 head outputs
-
-        return (profile_x, count_x), y, {}  # y is a tuple too, and need to return empty dict for w
-
-
-class ForecastingTask(BaseTask):
-
-    class DummyModule(nn.Module):
-
-        def forward(self, *args):
-            return args
-
-    def __init__(self, norm='mean', **kwargs):
-        super().__init__(**kwargs)
-
-        if norm == 'revnorm':
-            self.encoder = ReversibleInstanceNorm1dInput(self.dataset.d_input, transposed=False)
-            self.decoder = ReversibleInstanceNorm1dOutput(self.encoder)
-        elif norm == 'mean':
-            self.encoder = TSNormalization(method='mean', horizon=self.dataset.dataset_train.forecast_horizon)
-            self.decoder = TSInverseNormalization(method='mean', normalizer=self.encoder)
-        elif norm == 'last':
-            self.encoder = TSNormalization(method='last', horizon=self.dataset.dataset_train.forecast_horizon)
-            self.decoder = TSInverseNormalization(method='last', normalizer=self.encoder)
-        else:
-            self.encoder = None
-            self.decoder = None
-
-        try:
-            if hasattr(self.dataset.dataset_train, 'mean'):
-                self.mean = torch.tensor(self.dataset.dataset_train.mean)
-                self.std = torch.tensor(self.dataset.dataset_train.std)
-            elif hasattr(self.dataset.dataset_train, 'standardization'):
-                self.mean = torch.tensor(self.dataset.dataset_train.standardization['means'])
-                self.std = torch.tensor(self.dataset.dataset_train.standardization['stds'])
-            else:
-                self.mean = None
-                self.std = None
-        except AttributeError:
-            raise AttributeError('Dataset does not have mean/std attributes')
-            self.mean = torch.tensor(self.dataset.dataset_train.standardization['means'])
-            self.std = torch.tensor(self.dataset.dataset_train.standardization['stds'])
-
-        if hasattr(self.dataset.dataset_train, 'log_transform'):
-            self.log_transform = self.dataset.dataset_train.log_transform
-        else:
-            self.log_transform = False
-        print("Log Transform", self.log_transform)
-
-    def metrics(self, x, y, state=None, timestamps=None, ids=None): # Explicit about which arguments the decoder might pass through, but can future-proof with **kwargs
-        if self.mean is not None:
-            means = self.mean[ids].to(x.device)
-            stds = self.std[ids].to(x.device)
-            x_ = x * stds[:, None, None] + means[:, None, None]
-            y_ = y * stds[:, None, None] + means[:, None, None]
-        else:
-            x_ = x
-            y_ = y
-
-        if self.log_transform:
-            x_ = torch.exp(x_)
-            y_ = torch.exp(y_)
-
-        return super().metrics(x_, y_)
-
-class VideoTask(BaseTask):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        # self._y_to_logits = {}
-        self._vid_to_logits = {}
-        self._vid_to_label = {}
-
-        # TODO needed to extract the first element of y, which includes the video idea; there should be a cleaner pattern to this
-        import copy
-        loss_fn = copy.deepcopy(self.loss)
-        self.loss = lambda x, y: loss_fn(x, y[0])
-        if hasattr(self, 'loss_val'):
-            loss_val_fn = copy.deepcopy(self.loss_val)
-            self.loss_val = lambda x, y: loss_val_fn(x, y[0])
-
-    def metrics(self, logits, y, **kwargs):
-        labels, vids = y
-        return super().metrics(logits, labels, **kwargs)
-
-    def torchmetrics(self, logits, y, prefix):
-        """
-        logits: (batch, n_classes)
-        y = tuple of labels and video ids
-        labels: (batch)
-        vids: (batch)
-        """
-        for _logits, _label, _vid in zip(logits, y[0], y[1]):
-            _vid = _vid.item()
-            # Check that labels are consistent per video id
-            assert self._vid_to_label[prefix].get(_vid, _label) == _label
-            self._vid_to_label[prefix][_vid] = _label
-
-            self._vid_to_logits[prefix][_vid].append(_logits)
-
-    def _reset_torchmetrics(self, prefix):
-        self._vid_to_logits[prefix] = collections.defaultdict(list)
-        self._vid_to_label[prefix] = {}
-
-    def get_torchmetrics(self, prefix):
-        vid_to_average_logits = {vid: torch.mean(torch.stack(logits, dim=0), dim=0) for vid, logits in self._vid_to_logits[prefix].items()}
-        # y is (label, vid) pair
-        all_labels = torch.stack(list(self._vid_to_label[prefix].values()), dim=0) # (n_videos)
-        all_logits = torch.stack(list(vid_to_average_logits.values()), dim=0) # (n_videos, n_classes)
-        m = M.accuracy(all_logits, all_labels)
-        return {'aggregate_accuracy': m}
-
-
 class AdaptiveLMTask(BaseTask):
     def __init__(
         self,
@@ -499,38 +359,9 @@ class AdaptiveLMTask(BaseTask):
         self.loss = loss
 
 
-class ImageNetTask(BaseTask):
-    """
-    Imagenet training uses mixup augmentations, which require a separate loss for train and val,
-    which we overide the base task here.
-    """
-
-    def __init__(self, **kwargs):
-        import hydra
-
-        super().__init__(
-            dataset=kwargs.get("dataset", None),
-            model=kwargs.get("model", None),
-            loss=kwargs.get("loss", None),  # we still create the base loss here, but will overide below
-            metrics=kwargs.get("metrics", None),
-            torchmetrics=kwargs.get("torchmetrics", None)
-        )
-
-        # if using mixup, overide loss (train) and loss_val, otherwise
-        # we have just one loss from the base task above
-        if "loss_val" in kwargs and "loss_train" in kwargs:
-            self.loss = hydra.utils.instantiate(kwargs.get("loss_train"))
-            self.loss_val = hydra.utils.instantiate(kwargs.get('loss_val'))
-
-
 registry = {
     'base': BaseTask,
     'multiclass': MultiClass,
     'lm': LMTask,
-    'imagenet': ImageNetTask,
-    'forecasting': ForecastingTask,
-    'video': VideoTask,
     'hg38': HG38Task,
-    'bpnet': BPNetTask,
-    "splice": SpliceTask,
 }
