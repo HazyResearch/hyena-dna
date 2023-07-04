@@ -159,7 +159,7 @@ Let's describe a little about this command.
 
 Lots of other commands you can pass and customize, feel free to check out the `experiment=hg38/hg38_hyena` for details.
 
-
+Note: if you plan on pretraining on your own data, make sure to preprocess your data correctly, and your samples are what you expect in the dataloader. Things like, uppercase/lowercase, unknown characters, etc. Also, if your sequences are variable length (in our setting we used fixed lengths mostly, since next token prediction should theoretically be introduced to variable length sequences) then the padding may become significant or an issue. ie, if your length range is 100-32k, then the 100 sequence will have a lot of padding, so you'll need to ignore those tokens in the loss to avoid instability in training. The padding token should be `4` by default, so you can pass this in the command line, `+task.loss.ignore_index=4`, or modify the config too (under `task.loss`).
 
 ### GenomicBenchmarks
 <a name="genomicbenchmarks"></a>
@@ -389,13 +389,13 @@ As mentioned above, the main config is the experiment config, and for our exampl
 You can think of each of these sections as their own configs too. eg, `model`, `task`, `optimizer` etc. You can write them in here, or have it referenced
 at the top (as default or overide, subtle differences).
 
-For a new dataset, we need a new `dataset` config and a `pipepline` config. These configs get passed when they're instantiated.  
+For a new dataset, we need a new `dataset` config and a `pipeline` config. These configs get passed when they're instantiated.  
 
 The pipeline config hasn't been mentioned yet, but it's where we define a few different things. Take a look inside:
 
 `configs/pipeline/genomic_benchmark.yaml` 
 
- Try to emulate this config too, which will get reference at the top of the `experiment` config.  We select the `optimizer`, `scheduler`, name of the `dataset`, the `task` (typically classification for these downsteams, but we have other options for the decoder). Don't worry about the `encoder`.  We do use a `decoder`, which is just a single MLP that maps the backbone to the number of classes we're trying to predict.  When you create the dataset class, it will require a `d_output` for the number of classes, and the `decoder` will automatically pull this attribute in the background, as well as the dimension of the backbone from `d_model`.  The `decoder` can also has options, like `pool`, where we average the token embeddings, or `last` or `first`, meaning which token we use for the MLP to learn from.
+ Try to emulate this config too, which will get reference at the top of the `experiment` config.  We select the `optimizer`, `scheduler`, name of the `dataset`, the `task` (typically classification for these downsteams, but we have other options for the decoder). Don't worry about the `encoder`.  We do use a `decoder`, which is just a single MLP that maps the backbone to the number of classes we're trying to predict.  When you create the dataset class, it will require a `d_output` for the number of classes, and the `decoder` will automatically pull this attribute in the background, as well as the dimension of the backbone from `d_model`.  The `decoder` can also have options, like `pool`, where we average the token embeddings, or `last` or `first`, meaning which token we use for the MLP to learn from.
 
 If want to train at different sequence lengths, there's a few places we would need to change too.  Namely, the dataset config and the model configs.  You could
 change these in the `experiment` config, or individually setup defaults in the standalone `dataset` / `dataloader` configs too, up to you.
@@ -413,7 +413,7 @@ python -m train wandb=null experiment=hg38/genomic_benchmark train.pretrained_mo
 
 The dataset will automatically download to the `data/` dir (probably), and it's not that large, ~5-10 min setup.  All you need to do is download the weights from [HuggingFace](#huggingface) above, and change the configs to match the model settings, and the dataset seq_len you want to use.  Might take some fumbling around to get right, but it'll be worth it! 
 
-To describe this `experiment` config a little more, let's dive in.  It finetunes a Hyena-GPT. Let's focus on the `train` arguments.
+To describe this `experiment` config a little more, let's dive in.  It finetunes a HyenaDNA (GPT-like). Let's focus on the `train` arguments.
 
 - `remove_test_loader_in_eval: true`  # no test set in this benchmark  
 We have the option to remove an extra test_loader, eg, if val and test are the same.
@@ -461,13 +461,13 @@ This will run the main `src/train.py` script.
 
 Let's point out a few keys locations in the train.py script, since it's a little confusing where all the stuff gets called.
 
-- loading weights occurs with the `train.py`, `def load_state_dict()` function.  It actually calls a custom state hook to load gracefully (in the `/home/workspace/eric/safari-internal/src/models/sequence/long_conv_lm.py`, inthe `load_backbone()` function.
+- loading weights occurs with the `train.py`, `def load_state_dict()` function.  It actually calls a custom state hook to load gracefully (in the `src/models/sequence/long_conv_lm.py`, inthe `load_backbone()` function.
 
 - forward prop is done in the `def forward()` function, inside `SequenceLightning` module of `train.py`, but realy, it calls `self.task.forward()`, which actually makes the call to the model. That is to say, you need to go `src/tasks/tasks.py`, and fine `class LMTask`, and its `def forward()` function.  Here you'll see the actual call to the model.  Note, the decoder head (a single MLP for classification) is separate from the main model backbone (feature extractor).
 
 ### Sequence Length Warmup Callback
 
-We have sequence length warmup scheduler, implemented using a callback, which will increase sequence length in stages during training.  Basically the script will chech what epoch and "stage" the training is at, and update the dataset/dataloaders to the parameters for that stage.  Currently, you need to specify the stages manually in a config, the example config is at, and the relevant portion is at the bottom of the config, and here below too:
+We have sequence length warmup scheduler, implemented using a callback, which will increase sequence length in stages during training.  Basically the script will check what epoch and "stage" the training is at, and update the dataset/dataloaders to the parameters for that stage.  Currently, you need to specify the stages manually in a config, the example config is at, and the relevant portion is at the bottom of the config, and here below too:
 
 ```
 configs/experiment/hg38/hg38_hyena_seqlen_warmup_reload.yaml
