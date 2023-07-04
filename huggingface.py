@@ -241,6 +241,7 @@ def inference_single():
 
     # prep model and forward
     model.to(device)
+    model.eval()
     with torch.inference_mode():
         embeddings = model(tok_seq)
 
