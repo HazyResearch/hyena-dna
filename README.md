@@ -7,6 +7,7 @@
 - [blog](https://hazyresearch.stanford.edu/blog/2023-06-29-hyena-dna)
 - [colab](https://colab.research.google.com/drive/1wyVEQd4R3HYLTUOXEEQmp_I8aNC_aLhL?usp=sharing)  
 - [huggingface](https://huggingface.co/LongSafari)
+- [discord](https://discord.gg/RJxUq4mzmW)
 
 ## Intro
 
@@ -20,6 +21,10 @@ For the easiest entry point though, check out the HyenaDNA **[colab](https://col
 
   
 Credit: much of the code is forked and extended from [S4](https://github.com/HazyResearch/state-spaces) and [Safari](https://github.com/HazyResearch/safari).
+
+## Discord
+
+Trying [Discord](https://discord.gg/RJxUq4mzmW) out! Maybe it'll be conducive to sharing ideas / tips on how HyenaDNA could be applied in different ways. Feel free to post questions there.
 
 ## Hugging Face pretrained weights
 <a name="huggingface"></a>
