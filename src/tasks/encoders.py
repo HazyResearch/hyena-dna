@@ -119,7 +119,7 @@ class Conv1DEncoder(Encoder):
         return x
 
 class LayerEncoder(Encoder):
-    """Use an arbitary SequenceModule layer"""
+    """Use an arbitrary SequenceModule layer"""
 
     def __init__(self, d_model, prenorm=False, norm='layer', layer=None):
         super().__init__()
