@@ -6,7 +6,7 @@ defaults:
 
 model:
   _name_: dna_embedding
-  d_model: 128
+  d_model: 256
   n_layer: 2
   d_inner: ${eval:4 * ${.d_model}}
   vocab_size: 12
