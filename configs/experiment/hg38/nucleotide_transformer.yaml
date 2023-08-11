@@ -80,6 +80,6 @@ train:
   pretrained_model_strict_load: False  # false allows encoder/decoder to be used if new model uses it
   # for loading backbone and not head, requires both of these flags below
   pretrained_model_path: null # /home/workspace/eric/safari-internal/outputs/2023-03-23/07-10-41-239444/checkpoints/val/loss.ckpt
-  pretrained_model_state_hook: null
-    # _name_: load_backbone
-    # freeze_backbone: false  # seems to work much better if false (ie finetune entire model)
+  pretrained_model_state_hook:
+    _name_: load_backbone
+    freeze_backbone: false  # seems to work much better if false (ie finetune entire model)
