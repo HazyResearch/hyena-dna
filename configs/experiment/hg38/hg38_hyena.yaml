@@ -55,6 +55,8 @@ dataset:
   rc_aug: false
   num_workers: 12
   use_fixed_len_val: false  # placing a fixed length val here, but it's really the test
+  replace_N_token: false  # replace N (uncertain token) with pad tokens in dataloader
+  pad_interval: false  # handle uncertain tokens within the FastaInteral class  
 
 scheduler:
   t_in_epochs: False

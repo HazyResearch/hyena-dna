@@ -48,7 +48,7 @@ class HG38(SequenceDataset):
                  max_length_val=None, max_length_test=None, val_ratio=0.0005, val_split_seed=2357, use_fixed_len_val=False,
                  add_eos=True, detokenize=False, val_only=False, batch_size=32, batch_size_eval=None, num_workers=1,
                  shuffle=False, pin_memory=False, drop_last=False, fault_tolerant=False, ddp=False,
-                 fast_forward_epochs=None, fast_forward_batches=None,
+                 fast_forward_epochs=None, fast_forward_batches=None, replace_N_token=False, pad_interval=False,
                  *args, **kwargs):
         self.dataset_config_name = dataset_config_name
         self.tokenizer_name = tokenizer_name
@@ -71,6 +71,8 @@ class HG38(SequenceDataset):
         self.bed_file = bed_file
         self.fasta_file = fasta_file
         self.use_fixed_len_val = use_fixed_len_val
+        self.replace_N_token = replace_N_token
+        self.pad_interval = pad_interval        
 
         # handle if file paths are None (default paths)
         if self.bed_file is None:
@@ -133,7 +135,9 @@ class HG38(SequenceDataset):
                         return_seq_indices=False,
                         shift_augs=None,
                         rc_aug=self.rc_aug,
-                        return_augs=False)
+                        return_augs=False,
+                        replace_N_token=self.replace_N_token,
+                        pad_interval=self.pad_interval)
             for split, max_len in zip(['train', 'valid', 'test'], [self.max_length, self.max_length_val, self.max_length_test])
         ]
 
