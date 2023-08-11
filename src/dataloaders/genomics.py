@@ -371,9 +371,14 @@ class NucleotideTransformer(HG38):
             for split, max_len in zip(['train', 'val'], [self.max_length, self.max_length_val])
         ]
 
+    def val_dataloader(self, *args: Any, **kwargs: Any) -> Union[DataLoader, List[DataLoader]]:
+        """ The val dataloader """
+        return self._data_loader(self.dataset_val, batch_size=self.batch_size_eval, shuffle=self.shuffle_eval)
+
     def test_dataloader(self, *args: Any, **kwargs: Any) -> Union[DataLoader, List[DataLoader]]:
-        """ The test dataloader, it's a dummy loader just to make the trainer happy, we don't use it."""
-        return self._data_loader(self.dataset_val, batch_size=self.batch_size_eval)
+        """ The test dataloader """
+        # note: we're combining val/test into one
+        return self._data_loader(self.dataset_val, batch_size=self.batch_size_eval, shuffle=self.shuffle_eval)
 
 
 class ChromatinProfile(HG38):
