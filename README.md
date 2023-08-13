@@ -77,6 +77,32 @@ pip install -e . --no-build-isolation
 cd csrc/layer_norm && pip install . --no-build-isolation
 ```
 
+## Dockerfile
+
+Even better, if you're familar with Docker, we have an image you can pull with all the dependencies installed. It's the simplest, surest, but does require some familiarity with using Docker containers.
+
+Slight complication - you also need to clone the `flash-attn` repo that's used as a submodule in the main `hyena-dna` repo. That means, it maybe be better to reclone the entire repo using this command (sorry).
+
+```
+# clones main and submodule repos
+git clone --recurse-submodules https://github.com/HazyResearch/hyena-dna.git
+
+```
+
+Prepare docker container
+```
+# build the image within the hyena-dna repo (it will grab the Dockerfile here).  You need to place $USER_NAME with your own.
+docker build . -t $USER_NAME/hyena-dna
+
+Or,
+
+# pull already built image (our $USER_NAME is hyenadna)
+docker pull hyenadna/hyena-dna:latest
+
+# run the container: this will give you an interactive shell with the dependencies
+docker run --gpus all -it -p80:3000 hyenadna/hyena-dna /bin/bash
+```
+
 ## Quick Entry point 
 
 A quick start for this the repo is to train from scratch on a small genomics dataset. Let's try this just to see if things are set up ok.
@@ -201,9 +227,12 @@ There are 8 datasets in this suite, choose 1 at a time (passing the `dataset.dat
 
 You'll need to see the [Nucleotide Transformer](https://www.biorxiv.org/content/10.1101/2023.01.11.523679v1) paper appendix for how to download and process the datasets. We'll try and upload version + preprocessing steps later (sorry).
 
+If you'd like to use the pretrained weights we used to finetune on, you'll need the [tiny-1k-d256](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen-d256/tree/main) weights on Huggingface.
+
 sample run  
 ```
-python -m train wandb=null experiment=hg38/nucleotide_transformer dataset_name=enhancer dataset.max_length=500 model.layer.l_max=1024
+# trains from scratch
+python -m train wandb=null experiment=hg38/nucleotide_transformer dataset_name=enhancer dataset.max_length=500 model.layer.l_max=1026
 ```
 
 Similarly with GenomicBenchmarks, we need to select which dataset to use from the 17 Nucleotide Transformer datasets.
