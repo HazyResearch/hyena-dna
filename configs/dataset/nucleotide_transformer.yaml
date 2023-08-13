@@ -76,27 +76,27 @@ promoter_all:
   train_len: 53276
   classes: 2
   max_length: 300
-  metric: f1_binary
+  metric: f1_macro
 promoter_non_tata:
   train_len: 47759
   classes: 2
   max_length: 300
-  metric: f1_binary
+  metric: f1_macro
 promoter_tata:
   train_len: 5517
   classes: 2
   max_length: 300
-  metric: f1_binary
+  metric: f1_macro
 splice_sites_acceptor:
   train_len: 19961
   classes: 2
   max_length: 600
-  metric: f1_binary
+  metric: f1_macro
 splice_sites_donor:
   train_len: 19775
   classes: 2
   max_length: 600
-  metric: f1_binary
+  metric: f1_macro
 
 # name maxlen classes samples metric
 

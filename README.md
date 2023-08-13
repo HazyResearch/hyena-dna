@@ -32,6 +32,7 @@ Trying [Discord](https://discord.gg/RJxUq4mzmW) out! Maybe it'll be conducive to
 Check these out :)  There are different model sizes, and different training sequence lengths that they can handle up to. All pretrained on a single human reference genome (hg38).
 
 - [tiny-1k](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen/tree/main)
+- [tiny-1k-d256](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen-d256/tree/main)
 - [small-32k](https://huggingface.co/LongSafari/hyenadna-small-32k-seqlen/tree/main)
 - [medium-160k](https://huggingface.co/LongSafari/hyenadna-medium-160k-seqlen/tree/main)
 - [medium-450k](https://huggingface.co/LongSafari/hyenadna-medium-450k-seqlen/tree/main)
