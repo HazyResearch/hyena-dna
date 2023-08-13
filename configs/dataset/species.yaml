@@ -2,7 +2,7 @@ _name_: species
 dataset_name: species
 species_dir: '/local-scratch/nigam/projects/mwornow/projects/safari-internal/data/species'
 species: [chimpanzee,hippo]
-total_size: 5000
+total_size: 1000
 max_length: 1024
 species_weights: uniform
 chromosome_weights: uniform

@@ -46,7 +46,8 @@ class FastaInterval():
         # max_length = None,
         return_seq_indices = False,
         shift_augs = None,
-        rc_aug = False
+        rc_aug = False,
+        pad_interval = False,
     ):
         fasta_file = Path(fasta_file)
         assert fasta_file.exists(), 'path to fasta file must exist'
@@ -56,6 +57,7 @@ class FastaInterval():
         # self.max_length = max_length # -1 for adding sos or eos token
         self.shift_augs = shift_augs
         self.rc_aug = rc_aug
+        self.pad_interval = pad_interval        
 
         # calc len of each chromosome in fasta file, store in dict
         self.chr_lens = {}
@@ -87,6 +89,8 @@ class FastaInterval():
             start += rand_shift
             end += rand_shift
 
+        left_padding = right_padding = 0
+
         # checks if not enough sequence to fill up the start to end
         if interval_length < max_length:
             extra_seq = max_length - interval_length
@@ -98,9 +102,11 @@ class FastaInterval():
             end += extra_right_seq
 
         if start < 0:
+            left_padding = -start
             start = 0
 
         if end > chromosome_length:
+            right_padding = end - chromosome_length
             end = chromosome_length
 
         # Added support!  need to allow shorter seqs
@@ -111,6 +117,9 @@ class FastaInterval():
 
         if self.rc_aug and coin_flip():
             seq = string_reverse_complement(seq)
+
+        if self.pad_interval:
+            seq = ('.' * left_padding) + seq + ('.' * right_padding)
 
         return seq
 
@@ -134,7 +143,9 @@ class HG38Dataset(torch.utils.data.Dataset):
         return_seq_indices=False,
         shift_augs=None,
         rc_aug=False,
-        return_augs=False
+        return_augs=False,
+        replace_N_token=False,  # replace N token with pad token
+        pad_interval = False,  # options for different padding
     ):
 
         self.max_length = max_length
@@ -143,6 +154,8 @@ class HG38Dataset(torch.utils.data.Dataset):
         self.tokenizer = tokenizer
         self.return_augs = return_augs
         self.add_eos = add_eos
+        self.replace_N_token = replace_N_token  
+        self.pad_interval = pad_interval         
 
         bed_path = Path(bed_file)
         assert bed_path.exists(), 'path to .bed file must exist'
@@ -157,7 +170,8 @@ class HG38Dataset(torch.utils.data.Dataset):
             # max_length = max_length,
             return_seq_indices = return_seq_indices,
             shift_augs = shift_augs,
-            rc_aug = rc_aug
+            rc_aug = rc_aug,
+            pad_interval = pad_interval,
         )
 
     def __len__(self):
@@ -206,8 +220,9 @@ class HG38Dataset(torch.utils.data.Dataset):
         # convert to tensor
         seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
 
-        # replace N token with a pad token, so we can ignore it in the loss
-        seq = self.replace_value(seq, self.tokenizer._vocab_str_to_int['N'], self.tokenizer.pad_token_id)
+        if self.replace_N_token:
+            # replace N token with a pad token, so we can ignore it in the loss
+            seq = self.replace_value(seq, self.tokenizer._vocab_str_to_int['N'], self.tokenizer.pad_token_id)
 
         data = seq[:-1].clone()  # remove eos
         target = seq[1:].clone()  # offset by 1, includes eos
