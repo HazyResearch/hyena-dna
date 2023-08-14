@@ -49,10 +49,20 @@ There's a few way to use these HuggingFace weights, all with different flavors:
 ## Dependencies
 <a name="dependencies"></a>
 
-For this repo, let's start with the dependancies that are needed.  The repo is built using Pytorch Lightning (a training library) and Hydra a config oriented ML library. (It'll be super helpful to get familiar with those tools.)
+For this repo, let's start with the dependancies that are needed. (If you're familiar with Docker, you can skip this section and jump to the [docker](#docker) setup below). The repo is built using Pytorch Lightning (a training library) and Hydra a config oriented ML library. (It'll be super helpful to get familiar with those tools.)
 
 - clone repo, cd into it
+
+```
+git clone --recurse-submodules https://github.com/HazyResearch/hyena-dna.git && cd hyena-dna
+```
+
 - create a conda environment, with Python 3.8+
+
+```
+conda create -n hyena-dna python=3.8
+```
+
 - The repo is developed with Pytorch 1.13, using cuda 11.7
 
 ```
@@ -78,29 +88,30 @@ cd csrc/layer_norm && pip install . --no-build-isolation
 ```
 
 ## Dockerfile
+<a name="docker"></a>
 
 Even better, if you're familar with Docker, we have an image you can pull with all the dependencies installed. It's the simplest, surest, but does require some familiarity with using Docker containers.
 
-Slight complication - you also need to clone the `flash-attn` repo that's used as a submodule in the main `hyena-dna` repo. That means, it maybe be better to reclone the entire repo using this command (sorry).
+Slight complication - you also need to clone the `flash-attn` repo that's used as a submodule in the main `hyena-dna` repo. That means you need the `--recurse-submodules` flag, in case you cloned without it.
 
 ```
 # clones main and submodule repos
-git clone --recurse-submodules https://github.com/HazyResearch/hyena-dna.git
+git clone --recurse-submodules https://github.com/HazyResearch/hyena-dna.git && cd hyena-dna
 
 ```
 
 Prepare docker container
 ```
-# build the image within the hyena-dna repo (it will grab the Dockerfile here).  You need to place $USER_NAME with your own.
-docker build . -t $USER_NAME/hyena-dna
+# build the image within the hyena-dna repo (it will grab the Dockerfile here).  You need to place $USER_NAME with your own Dockerhub username.
+docker build . -t $USER_NAME/hyena-dna-public
 
 Or,
 
 # pull already built image (our $USER_NAME is hyenadna)
-docker pull hyenadna/hyena-dna:latest
+docker pull hyenadna/hyena-dna-public:latest
 
 # run the container: this will give you an interactive shell with the dependencies
-docker run --gpus all -it -p80:3000 hyenadna/hyena-dna /bin/bash
+docker run --gpus all -it -p80:3000 hyenadna/hyena-dna-public /bin/bash
 ```
 
 ## Quick Entry point 
