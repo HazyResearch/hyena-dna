@@ -103,15 +103,15 @@ git clone --recurse-submodules https://github.com/HazyResearch/hyena-dna.git && 
 Prepare docker container
 ```
 # build the image within the hyena-dna repo (it will grab the Dockerfile here).  You need to place $USER_NAME with your own Dockerhub username.
-docker build . -t $USER_NAME/hyena-dna-public
+docker build . -t $USER_NAME/hyena-dna
 
 Or,
 
 # pull already built image (our $USER_NAME is hyenadna)
-docker pull hyenadna/hyena-dna-public:latest
+docker pull hyenadna/hyena-dna:latest
 
 # run the container: this will give you an interactive shell with the dependencies
-docker run --gpus all -it -p80:3000 hyenadna/hyena-dna-public /bin/bash
+docker run --gpus all -it -p80:3000 hyenadna/hyena-dna /bin/bash
 ```
 
 ## Quick Entry point 

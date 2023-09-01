@@ -18,6 +18,7 @@ torchvision
 timm
 prettytable
 numerize
+git-lfs
 
 # Dataset specific packages
 torchtext==0.14.0 # LRA
