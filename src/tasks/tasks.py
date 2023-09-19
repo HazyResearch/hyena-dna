@@ -63,15 +63,15 @@ class BaseTask:
 
         for name in self.torchmetric_names:
             if name in tm_mine:
-                tracked_torchmetrics[name] = tm_mine[name]().to('cuda')
+                tracked_torchmetrics[name] = tm_mine[name]()
             elif name in ['AUROC', 'StatScores', 'Precision', 'Recall', 'F1', 'F1Score']:
-                tracked_torchmetrics[name] = getattr(tm, name)(average='macro', num_classes=self.dataset.d_output, compute_on_step=False).to('cuda')
+                tracked_torchmetrics[name] = getattr(tm, name)(average='macro', num_classes=self.dataset.d_output, compute_on_step=False)
             elif '@' in name:
                 k = int(name.split('@')[1])
                 mname = name.split('@')[0]
-                tracked_torchmetrics[name] = getattr(tm, mname)(average='macro', num_classes=self.dataset.d_output, compute_on_step=False, top_k=k).to('cuda')
+                tracked_torchmetrics[name] = getattr(tm, mname)(average='macro', num_classes=self.dataset.d_output, compute_on_step=False, top_k=k)
             else:
-                tracked_torchmetrics[name] = getattr(tm, name)(compute_on_step=False).to('cuda')
+                tracked_torchmetrics[name] = getattr(tm, name)(compute_on_step=False)
         
         return tracked_torchmetrics
 
