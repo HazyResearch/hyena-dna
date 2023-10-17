@@ -56,14 +56,23 @@ class FFTConvFuncv2(torch.autograd.Function):
         return du, dk.squeeze()
 
 
-def fftconv_ref(u, k, D, dropout_mask, gelu=True, k_rev=None):
+def fftconv_ref(u, k, D, dropout_mask, gelu=True, k_rev=None, bidirectional=False):
     seqlen = u.shape[-1]
     fft_size = 2 * seqlen
     k_f = torch.fft.rfft(k, n=fft_size) / fft_size
     if k_rev is not None:
         k_rev_f = torch.fft.rfft(k_rev, n=fft_size) / fft_size
         k_f = k_f + k_rev_f.conj()
-    u_f = torch.fft.rfft(u.to(dtype=k.dtype), n=fft_size)
+
+    if bidirectional:
+        # we need to pad 1/2 before and 1/2 after the input
+        padded_length = seqlen + 2 * (seqlen // 2)
+        pad_before = padded_length // 2 - (seqlen // 2)
+        pad_after = padded_length - seqlen - pad_before
+        padded_u = F.pad(u, (pad_before, pad_after), mode='constant', value=0)
+        u_f = torch.fft.rfft(padded_u.to(dtype=k.dtype), n=fft_size)
+    else:
+        u_f = torch.fft.rfft(u.to(dtype=k.dtype), n=fft_size)
 
     if len(u.shape) > 3:
         k_f = k_f.unsqueeze(1)
@@ -164,6 +173,7 @@ class HyenaFilter(OptimModule):
         linear_mixer=False,
         modulate: bool = True,
         normalized=False,
+        bidirectional=False,
         **kwargs,
     ):
         """
@@ -184,6 +194,7 @@ class HyenaFilter(OptimModule):
         self.fused_fft_conv = fused_fft_conv
         self.bias = nn.Parameter(torch.randn(self.d_model))
         self.dropout = nn.Dropout(dropout)
+        self.bidirectional = bidirectional
 
         act = Sin(dim=order, w=w)
         assert (
@@ -247,7 +258,7 @@ class HyenaFilter(OptimModule):
                 force_fp16_output=torch.is_autocast_enabled(),
             )
         else:
-            y = fftconv_ref(x, k, bias, dropout_mask=None, gelu=False)
+            y = fftconv_ref(x, k, bias, dropout_mask=None, gelu=False, bidirectional=self.bidirectional)
             # y = (
             #     FFTConvFuncv2.apply(x, k.to(dtype=torch.float32))
             #     + bias.unsqueeze(-1) * x

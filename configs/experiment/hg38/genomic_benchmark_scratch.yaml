@@ -49,6 +49,7 @@ model:
     lr: ${optimizer.lr}
     wd: 0.0
     lr_pos_emb: 0.0
+    bidirectional: False
 
 task:
   # 2 options for soft_cross_entropy (for mixup)
