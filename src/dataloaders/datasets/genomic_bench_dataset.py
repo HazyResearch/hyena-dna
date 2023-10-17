@@ -166,7 +166,7 @@ class GenomicBenchmarkDataset(torch.utils.data.Dataset):
         # use Path object
         base_path = Path(dest_path) / dataset_name / split
 
-        self.all_paths = []
+        self.all_seqs = []
         self.all_labels = []
         label_mapper = {}
 
@@ -174,18 +174,17 @@ class GenomicBenchmarkDataset(torch.utils.data.Dataset):
             label_mapper[x.stem] = i
 
         for label_type in label_mapper.keys():
-            for x in (base_path / label_type).iterdir():
-                self.all_paths.append(x)
+            for path in (base_path / label_type).iterdir():
+                with open(path, "r") as f:
+                    content = f.read()
+                self.all_seqs.append(content)
                 self.all_labels.append(label_mapper[label_type])
-
+                
     def __len__(self):
-        return len(self.all_paths)
+        return len(self.all_labels)
 
     def __getitem__(self, idx):
-        txt_path = self.all_paths[idx]
-        with open(txt_path, "r") as f:
-            content = f.read()
-        x = content
+        x = self.all_seqs[idx]
         y = self.all_labels[idx]
 
         # apply rc_aug here if using
