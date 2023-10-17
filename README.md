@@ -8,6 +8,7 @@
 - [colab](https://colab.research.google.com/drive/1wyVEQd4R3HYLTUOXEEQmp_I8aNC_aLhL?usp=sharing)  
 - [huggingface](https://huggingface.co/LongSafari)
 - [discord](https://discord.gg/RJxUq4mzmW)
+- [youtube (talk)](https://youtu.be/haSkAC1fPX0?si=IUMmo_iGZ6SK1DBX)
 
 ## Intro
 
@@ -33,6 +34,7 @@ Check these out :)  There are different model sizes, and different training sequ
 
 - [tiny-1k](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen/tree/main)
 - [tiny-1k-d256](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen-d256/tree/main)
+- [tiny-16k-d128](https://huggingface.co/LongSafari/hyenadna-tiny-16k-seqlen-d128/tree/main)
 - [small-32k](https://huggingface.co/LongSafari/hyenadna-small-32k-seqlen/tree/main)
 - [medium-160k](https://huggingface.co/LongSafari/hyenadna-medium-160k-seqlen/tree/main)
 - [medium-450k](https://huggingface.co/LongSafari/hyenadna-medium-450k-seqlen/tree/main)
@@ -113,6 +115,22 @@ docker pull hyenadna/hyena-dna:latest
 # run the container: this will give you an interactive shell with the dependencies
 docker run --gpus all -it -p80:3000 hyenadna/hyena-dna /bin/bash
 ```
+
+Update:
+<a name="docker_nt"></a>
+
+We actually have a second Docker image, which has all the Nucleotide Transformer datasets, checkpoint, and exact commands and hyperparameter settings used to reproduce the best results in the HyenaDNA paper.
+
+```
+docker pull hyenadna/hyena-dna-nt6:latest 
+docker run --gpus all -it -p80:3000 hyenadna/hyena-dna-nt6 /bin/bash
+
+```
+
+This will land you inside the `/wdr`, which has a file named `launch_commands_nucleotide_transformer` with all the launch commands and (associated hyperparameters) for the 18 Nucleotide Transformer datasets.
+
+What's the difference with the first Docker image you ask?  Not much, just some different dependancy versions.
+
 
 ## Quick Entry point 
 
@@ -236,9 +254,11 @@ There are 8 datasets in this suite, choose 1 at a time (passing the `dataset.dat
 
 ### Nucleotide Transformer datasets
 
-You'll need to see the [Nucleotide Transformer](https://www.biorxiv.org/content/10.1101/2023.01.11.523679v1) paper appendix for how to download and process the datasets. We'll try and upload version + preprocessing steps later (sorry).
+You can check out the [Nucleotide Transformer](https://www.biorxiv.org/content/10.1101/2023.01.11.523679v1) paper appendix for how to download and process the datasets. 
 
 If you'd like to use the pretrained weights we used to finetune on, you'll need the [tiny-1k-d256](https://huggingface.co/LongSafari/hyenadna-tiny-1k-seqlen-d256/tree/main) weights on Huggingface.
+
+Update:  Or, you can invest a bit of time and learn how use Docker, and just use our [pre-built Docker image](#docker_nt) that has the exact Nucleotide Transformer datasets/splits, pretrained weights, and hyperparameters used to obtain the results in the HyenaDNA paper (by far most convenenient way to reproduce results).
 
 sample run  
 ```
@@ -580,6 +600,17 @@ In the sample config, see the
 Things to note:
 
 Train dataset will change during training, but the test set will always be fixed.  The test len/batch size is set the normal way in your command launch, ie, `dataset.batch_size`, `dataset`.
+
+
+### Experimental
+
+We have an experimental bidirectional implementation of HyenaDNA. We used this in a recent ablation on the GenomicBenchmarks dataset where we trained from scratch, ie, did not pretrain using masked language modeling via BERT. We compared this to the standard causal HyenaDNA, and the causal version performed better. But some people very much want a bidirectional HyenaDNA, so we provide one instantiation of this, of which there are many ways to do bidirectionalality.
+
+In regards to how we implementated it, we simply manipulate the padding of the FFT convolution. Checkout the `src/models/sequence/hyena.py` script for more details (eg just search for `bidirectional`).
+
+To use bidirectional, pass in the flag (at launch) `model.bidirectional=True`, that's it!  
+
+Note, the codebase only supports bidirectional training from scratch on a downstream task, ie, no masked language model pretraining. It doesn't make sense to do causal pretraining using bidirectionalality, so use at your own risk!
 
 
 ## Citation
