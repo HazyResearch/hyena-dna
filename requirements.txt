@@ -13,7 +13,7 @@ einops
 opt_einsum
 cmake # For pykeops support
 # pykeops # Only for S4D. If there are installation problems with pykeops==2.x, try pykeops==1.5
-transformers # For some schedulers
+transformers==4.26.1 # For some schedulers and tokenizers
 torchvision
 timm
 prettytable
@@ -21,7 +21,7 @@ numerize
 git-lfs
 
 # Dataset specific packages
-torchtext==0.14.0 # LRA
+torchtext==0.14.0 # this needs to align with the pytorch version
 datasets # LRA
 
 # genomic specific
