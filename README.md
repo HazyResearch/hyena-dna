@@ -220,6 +220,18 @@ Let's describe a little about this command.
 
 Lots of other commands you can pass and customize, feel free to check out the `experiment=hg38/hg38_hyena` for details.
 
+### Pretraining on your own data
+<a name="pretraining_custom"></a>
+
+To pretrain on your own data, all you need is (ideally) a `.fasta` file.  You don't need a .bed file like we used for HG38, we just used that for convenience.  You can follow our species classification dataloader for how to setup a general pretraining dataloader that would randomly sample a chromosome and then a sequence of a given length.  
+
+Sample pretraining dataloader  
+```
+src/dataloaders/datasets/species_dataset.py
+```
+
+The species dataloader can be used for pretraining as well by swapping out the .fasta file (for your own) and doing some wrangling with the configs.  There is also some code change to map the actual chromosomes you have in your .fasta file, so you'll have to dive into the code and what the dataloader is doing.  Most of the work in general for using this repo is just setting up dataloaders and configs (which takes time, but it's worth it!).
+
 Note: if you plan on pretraining on your own data, make sure to preprocess your data correctly, and your samples are what you expect in the dataloader. Things like, uppercase/lowercase, unknown characters, etc. Also, if your sequences are variable length (in our setting we used fixed lengths mostly, since next token prediction should theoretically be introduced to variable length sequences) then the padding may become significant or an issue. ie, if your length range is 100-32k, then the 100 sequence will have a lot of padding, so you'll need to ignore those tokens in the loss to avoid instability in training. The padding token should be `4` by default, so you can pass this in the command line, `+task.loss.ignore_index=4`, or modify the config too (under `task.loss`).
 
 ### GenomicBenchmarks
@@ -604,13 +616,29 @@ Train dataset will change during training, but the test set will always be fixed
 
 ### Experimental
 
-We have an experimental bidirectional implementation of HyenaDNA. We used this in a recent ablation on the GenomicBenchmarks dataset where we trained from scratch, ie, did not pretrain using masked language modeling via BERT. We compared this to the standard causal HyenaDNA, and the causal version performed better. But some people very much want a bidirectional HyenaDNA, so we provide one instantiation of this, of which there are many ways to do bidirectionalality.
+1. We have an experimental bidirectional implementation of HyenaDNA. We used this in a recent ablation on the GenomicBenchmarks dataset where we trained from scratch, ie, did not pretrain using masked language modeling via BERT. We compared this to the standard causal HyenaDNA, and the causal version performed better. But some people very much want a bidirectional HyenaDNA, so we provide one instantiation of this, of which there are many ways to do bidirectionalality.
 
 In regards to how we implementated it, we simply manipulate the padding of the FFT convolution. Checkout the `src/models/sequence/hyena.py` script for more details (eg just search for `bidirectional`).
 
 To use bidirectional, pass in the flag (at launch) `model.bidirectional=True`, that's it!  
 
 Note, the codebase only supports bidirectional training from scratch on a downstream task, ie, no masked language model pretraining. It doesn't make sense to do causal pretraining using bidirectionalality, so use at your own risk!
+
+2. For downstream tasks, we added an option to only use / average over masked tokens. We updated the GenomicBenchmarks and Nuc Trans dataset with this ability, see there dataset classes for how it's implemented. To use it:
+
+- you need to also set the right config settings. See their experiment configs, eg, `/src/configs/experiment/hg38/genomic_benchmark.yaml`, and in particular, use `dataset.return_mask=True`, and `dataset.padding_side=right`
+- you need to set the new task created, which is called `masked_multiclass`, also in the experiment config.  All this does (differently than before) is handle the passing of the masks correctly to the model.
+
+In practice, for short range tasks with not a lot padding, we noticed it didn't make too much of a difference.  But if your sequences have a ton of padding, then this will definitely help. In the paper, we didn't use this, and had left side padding by default.
+
+
+### Change Log / updates:
+
+- Added more weights to [huggingface](#huggingface).
+- Added [docker image](#docker_nt) with Nucleotide Transformer datasets, weights, and exact hyper parameters to reproduce results.
+- There's an experimential bidirectional option added.  See [Experimental](#Experimental).
+- We added an option to pass a mask and ignore padded tokens for downstream tasks.  See [Experimental](#Experimental).
+- Added some tips on [pretraining](#pretraining_custom) your on your own data.
 
 
 ## Citation
