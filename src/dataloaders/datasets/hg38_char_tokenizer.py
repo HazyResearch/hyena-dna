@@ -87,8 +87,8 @@ class CharacterTokenizer(PreTrainedTokenizer):
         self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
     ) -> List[int]:
         sep = [self.sep_token_id]
-        cls = [self.cls_token_id]
-        result = cls + token_ids_0 + sep
+        # cls = [self.cls_token_id]
+        result = token_ids_0 + sep
         if token_ids_1 is not None:
             result += token_ids_1 + sep
         return result
@@ -106,7 +106,7 @@ class CharacterTokenizer(PreTrainedTokenizer):
                 already_has_special_tokens=True,
             )
 
-        result = [1] + ([0] * len(token_ids_0)) + [1]
+        result = ([0] * len(token_ids_0)) + [1]
         if token_ids_1 is not None:
             result += ([0] * len(token_ids_1)) + [1]
         return result
