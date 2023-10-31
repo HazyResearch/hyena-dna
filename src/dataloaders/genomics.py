@@ -199,7 +199,7 @@ class HG38(SequenceDataset):
         return DataLoader(
             dataset,
             batch_size=batch_size,
-            num_workers=1,  # Data is already in memory, we don't need many workers
+            num_workers=self.num_workers,  # Data is already in memory, we don't need many workers
             shuffle=shuffle,
             sampler=sampler,
             drop_last=self.drop_last,
@@ -221,7 +221,7 @@ class GenomicBenchmark(HG38):
 
     def __init__(self, dataset_name, dest_path=None, tokenizer_name='char', d_output=None, rc_aug=False,
                 max_length=1024, use_padding=True, max_length_val=None, max_length_test=None,
-                padding_side='left', val_ratio=0.0005, val_split_seed=2357, add_eos=False, 
+                padding_side='left', return_mask=False, val_ratio=0.0005, val_split_seed=2357, add_eos=False, 
                 detokenize=False, val_only=False, batch_size=32, batch_size_eval=None, num_workers=1,
                 shuffle=True, pin_memory=False, drop_last=False, fault_tolerant=False, ddp=False,
                 fast_forward_epochs=None, fast_forward_batches=None, *args, **kwargs):
@@ -236,6 +236,7 @@ class GenomicBenchmark(HG38):
         self.max_length_val = max_length_val if max_length_val is not None else max_length
         self.max_length_test = max_length_test if max_length_test is not None else max_length
         self.padding_side = padding_side
+        self.return_mask = return_mask
         self.val_ratio = val_ratio
         self.val_split_seed = val_split_seed
         self.val_only = val_only
@@ -286,7 +287,9 @@ class GenomicBenchmark(HG38):
                                 add_eos=self.add_eos,
                                 dest_path=self.dest_path,
                                 rc_aug=self.rc_aug,
-                                return_augs=False)
+                                return_augs=False,
+                                return_mask=self.return_mask,
+            )
             for split, max_len in zip(['train', 'val'], [self.max_length, self.max_length_val])
         ]
 
@@ -301,7 +304,7 @@ class NucleotideTransformer(HG38):
 
     def __init__(self, dataset_name, dest_path=None, tokenizer_name='char', d_output=None, rc_aug=False,
                 max_length=1024, use_padding=True, max_length_val=None, max_length_test=None,
-                padding_side='left', val_ratio=0.0005, val_split_seed=2357, add_eos=False, 
+                padding_side='left', return_mask=False, val_ratio=0.0005, val_split_seed=2357, add_eos=False, 
                 detokenize=False, val_only=False, batch_size=32, batch_size_eval=None, num_workers=1,
                 shuffle=True, shuffle_eval=None, pin_memory=False, drop_last=False, fault_tolerant=False, ddp=False,
                 fast_forward_epochs=None, fast_forward_batches=None, *args, **kwargs):
@@ -316,6 +319,7 @@ class NucleotideTransformer(HG38):
         self.max_length_val = max_length_val if max_length_val is not None else max_length
         self.max_length_test = max_length_test if max_length_test is not None else max_length
         self.padding_side = padding_side
+        self.return_mask = return_mask
         self.val_ratio = val_ratio
         self.val_split_seed = val_split_seed
         self.val_only = val_only
@@ -367,7 +371,9 @@ class NucleotideTransformer(HG38):
                                 add_eos=self.add_eos,
                                 dest_path=self.dest_path,
                                 rc_aug=self.rc_aug,
-                                return_augs=False)
+                                return_augs=False,
+                                return_mask=self.return_mask,
+            )
             for split, max_len in zip(['train', 'val'], [self.max_length, self.max_length_val])
         ]
 
