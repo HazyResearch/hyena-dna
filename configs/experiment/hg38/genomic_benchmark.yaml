@@ -39,9 +39,13 @@ model:
     wd: 0.0
     lr_pos_emb: 0.0
 
+# new task, allows you to pass a mask (or not), and will only average over those tokens
 task:
-  loss:
-    _name_: cross_entropy
+  _name_: masked_multiclass
+  loss: cross_entropy
+  metrics:
+    - accuracy
+  torchmetrics: null
 
 trainer:
   accelerator: gpu
@@ -61,8 +65,10 @@ dataset:
   # max_length_val: ${dataset.max_length}
   # max_length_test: ${dataset.max_length}
   tokenizer_name: char
-  # add_eos: true
+  add_eos: false
   rc_aug: false  # reverse complement augmentation
+  return_mask: false
+  padding_side: left  # right is ok too, depending on what you want to do
 
 scheduler:
   t_in_epochs: False

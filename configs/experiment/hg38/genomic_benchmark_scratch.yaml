@@ -23,8 +23,10 @@ dataset:
   # max_length_val: ${dataset.max_length}
   # max_length_test: ${dataset.max_length}
   tokenizer_name: char
-  # add_eos: true
+  add_eos: false
   rc_aug: false  # reverse complement augmentation
+  return_mask: false
+  padding_side: left
   
 model:
   _name_: dna_embedding
@@ -51,14 +53,13 @@ model:
     lr_pos_emb: 0.0
     bidirectional: False
 
+# new task, allows you to pass a mask (or not), and will only average over those tokens
 task:
-  # 2 options for soft_cross_entropy (for mixup)
-  loss:
-    # soft_cross_entropy for pytorch 1.10+, which takes in label_smoothing here
-    _name_: cross_entropy
-    # label_smoothing: 0.1
-  # pass in list of k's
-  # last_k_ppl: null
+  _name_: masked_multiclass
+  loss: cross_entropy
+  metrics:
+    - accuracy
+  torchmetrics: null
 
 trainer:
   accelerator: gpu
