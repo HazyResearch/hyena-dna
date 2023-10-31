@@ -31,7 +31,7 @@ model:
     _name_: hyena
     emb_dim: 5
     filter_order: 64
-    local_order: 3
+    short_filter_order: 3
     l_max: 1026  # required to be set the same as the pretrained model if using, don't forget the +2!  ${eval:${dataset.max_length}+2}
     modulate: True
     w: 10

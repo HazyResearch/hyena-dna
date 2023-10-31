@@ -22,7 +22,7 @@ model:
     _name_: hyena
     emb_dim: 5
     filter_order: 64
-    local_order: 3
+    short_filter_order: 3
     l_max: ${eval:${dataset.max_length}+2}
     modulate: True
     w: 10
