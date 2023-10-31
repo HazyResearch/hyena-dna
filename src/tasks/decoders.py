@@ -61,7 +61,7 @@ class SequenceDecoder(Decoder):
         if mode == 'ragged':
             assert not use_lengths
 
-    def forward(self, x, state=None, lengths=None, l_output=None):
+    def forward(self, x, state=None, lengths=None, l_output=None, mask=None):
         """
         x: (n_batch, l_seq, d_model)
         Returns: (n_batch, l_output, d_output)
@@ -83,26 +83,26 @@ class SequenceDecoder(Decoder):
         elif self.mode == "first":
             restrict = lambda x: x[..., :l_output, :]
         elif self.mode == "pool":
-            restrict = lambda x: (
-                torch.cumsum(x, dim=-2)
-                / torch.arange(
-                    1, 1 + x.size(-2), device=x.device, dtype=x.dtype
-                ).unsqueeze(-1)
-            )[..., -l_output:, :]
+            if mask is None:
+                restrict = lambda x: (
+                    torch.cumsum(x, dim=-2)
+                    / torch.arange(
+                        1, 1 + x.size(-2), device=x.device, dtype=x.dtype
+                    ).unsqueeze(-1)
+                )[..., -l_output:, :]           
+            else:
+                # sum masks
+                mask_sums = torch.sum(mask, dim=-1).squeeze() - 1  # for 0 indexing
 
-            def restrict(x):
-                L = x.size(-2)
-                s = x.sum(dim=-2, keepdim=True)
-                if l_output > 1:
-                    c = torch.cumsum(x[..., -(l_output - 1) :, :].flip(-2), dim=-2)
-                    c = F.pad(c, (0, 0, 1, 0))
-                    s = s - c  # (B, l_output, D)
-                    s = s.flip(-2)
-                denom = torch.arange(
-                    L - l_output + 1, L + 1, dtype=x.dtype, device=x.device
-                )
-                s = s / denom
-                return s
+                # convert mask_sums to dtype int
+                mask_sums = mask_sums.type(torch.int64)
+
+                restrict = lambda x: (
+                    torch.cumsum(x, dim=-2)
+                    / torch.arange(
+                        1, 1 + x.size(-2), device=x.device, dtype=x.dtype
+                    ).unsqueeze(-1)
+                )[torch.arange(x.size(0)), mask_sums, :].unsqueeze(1)  # need to keep original shape
 
         elif self.mode == "sum":
             restrict = lambda x: torch.cumsum(x, dim=-2)[..., -l_output:, :]
