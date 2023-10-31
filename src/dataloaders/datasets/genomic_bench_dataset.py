@@ -14,10 +14,7 @@ from pathlib import Path
 
 
 from src.dataloaders.datasets.hg38_char_tokenizer import CharacterTokenizer
-from genomic_benchmarks.data_check import info
-from genomic_benchmarks.data_check import list_datasets
 from genomic_benchmarks.loc2seq import download_dataset
-from genomic_benchmarks.dataset_getters import pytorch_datasets
 from genomic_benchmarks.data_check import is_downloaded
 from src.dataloaders.base import default_data_path
 
@@ -141,7 +138,8 @@ class GenomicBenchmarkDataset(torch.utils.data.Dataset):
         use_padding=None,
         add_eos=False,
         rc_aug=False,
-        return_augs=False
+        return_augs=False,
+        return_mask=False,
     ):
 
         self.max_length = max_length
@@ -152,6 +150,7 @@ class GenomicBenchmarkDataset(torch.utils.data.Dataset):
         self.add_eos = add_eos
         self.d_output = d_output  # needed for decoder to grab
         self.rc_aug = rc_aug
+        self.return_mask = return_mask
 
         if not is_downloaded(dataset_name, cache_path=dest_path):
             print("downloading {} to {}".format(dataset_name, dest_path))
@@ -192,25 +191,22 @@ class GenomicBenchmarkDataset(torch.utils.data.Dataset):
             x = string_reverse_complement(x)
 
         seq = self.tokenizer(x,
-            add_special_tokens=False,
-            padding="max_length" if self.use_padding else None,
+            add_special_tokens=True if self.add_eos else False,  # this is what controls adding eos
+            padding="max_length" if self.use_padding else "do_not_pad",
             max_length=self.max_length,
             truncation=True,
-        )  # add cls and eos token (+2)
-        seq = seq["input_ids"]  # get input_ids
+        )
+        seq_ids = seq["input_ids"]  # get input_ids
 
-        # need to handle eos here
-        if self.add_eos:
-            # append list seems to be faster than append tensor
-            seq.append(self.tokenizer.sep_token_id)
-        
-        # convert to tensor
-        seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
+        seq_ids = torch.LongTensor(seq_ids)
 
         # need to wrap in list
         target = torch.LongTensor([y])  # offset by 1, includes eos
 
-        return seq, target
+        if self.return_mask:
+            return seq_ids, target, {'mask': torch.BoolTensor(seq['attention_mask'])}
+        else:
+            return seq_ids, target
 
 
 
@@ -228,13 +224,15 @@ if __name__ == '__main__':
     max_length = 300  # max len of seq grabbed
     use_padding = True
     dest_path = "data/genomic_benchmark/"
+    return_mask = True
+    add_eos = True
+    padding_side = 'right'    
 
     tokenizer = CharacterTokenizer(
         characters=['A', 'C', 'G', 'T', 'N'],
-        # not sure why tokenizer needs max len
-        model_max_length=max_length + 2,  # add 2 since default adds eos/eos tokens, crop later
+        model_max_length=max_length,
         add_special_tokens=False,
-        padding_side='left',
+        padding_side=padding_side,
     )
 
     ds = GenomicBenchmarkDataset(
@@ -244,7 +242,8 @@ if __name__ == '__main__':
         tokenizer=tokenizer,
         tokenizer_name='char',
         dest_path=dest_path,
-        # add_eos=False,
+        return_mask=return_mask,
+        add_eos=add_eos,
     )
 
     # it = iter(ds)
