@@ -38,12 +38,22 @@ trainer:
   gradient_clip_val: 1.0
   # strategy: null
 
+# new task, allows you to pass a mask (or not), and will only average over those tokens
+task:
+  _name_: masked_multiclass
+  loss: cross_entropy
+  metrics:
+    - accuracy
+  torchmetrics: null
+
 dataset:
   batch_size: 128
   # max_length: 256 # auto selected now based on dataset name
   tokenizer_name: char
   add_eos: false
   rc_aug: false  # reverse complement augmentation
+  return_mask: false
+  padding_side: left
 
 scheduler:
   t_in_epochs: False
@@ -51,22 +61,6 @@ scheduler:
   warmup_lr_init: 1e-6
   warmup_t: ${eval:${div_up:${dataset.train_len}, ${train.global_batch_size}} * ${trainer.max_epochs} * 0.01}
   lr_min: ${eval:0.1 * ${optimizer.lr}}
-
-# scheduler:
-#   # _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
-#   _name_: plateau
-#   mode: ${train.mode} # Which metric to monitor
-#   factor: 0.2  # Decay factor when ReduceLROnPlateau is used
-#   patience: 10
-#   min_lr: 0.0  # Minimum learning rate during annealing
-
-
-# scheduler:
-#   # _target_: transformers.get_linear_schedule_with_warmup
-#   _name_: linear_warmup
-#   num_warmup_steps: 100
-#   num_training_steps: 4000
-
 
 optimizer:
   lr: 6e-4

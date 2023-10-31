@@ -42,7 +42,8 @@ class NucleotideTransformerDataset(torch.utils.data.Dataset):
         use_padding=None,
         add_eos=False,
         rc_aug=False,
-        return_augs=False
+        return_augs=False,
+        return_mask=False,
     ):
 
         self.max_length = max_length
@@ -53,6 +54,7 @@ class NucleotideTransformerDataset(torch.utils.data.Dataset):
         self.add_eos = add_eos
         self.d_output = d_output  # needed for decoder to grab
         self.rc_aug = rc_aug
+        self.return_mask = return_mask
 
         # change "val" split to "test".  No val available, just test
         if split == "val":
@@ -84,17 +86,13 @@ class NucleotideTransformerDataset(torch.utils.data.Dataset):
             x = string_reverse_complement(x)
 
         seq = self.tokenizer(x,
-            add_special_tokens=False,
-            padding="max_length" if self.use_padding else None,
+            add_special_tokens=True if self.add_eos else False,  # this is what controls adding eos
+            padding="max_length" if self.use_padding else 'do_not_pad',
             max_length=self.max_length,
             truncation=True,
-        )  # add cls and eos token (+2)
-        seq = seq["input_ids"]  # get input_ids
-
-        # need to handle eos here
-        if self.add_eos:
-            # append list seems to be faster than append tensor
-            seq.append(self.tokenizer.sep_token_id)
+        )
+        seq_ids = seq["input_ids"]  # get input_ids
+        seq_ids = torch.LongTensor(seq_ids)
 
         # convert to tensor
         seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
@@ -102,4 +100,7 @@ class NucleotideTransformerDataset(torch.utils.data.Dataset):
         # need to wrap in list
         target = torch.LongTensor([y])  # offset by 1, includes eos
 
-        return seq, target
+        if self.return_mask:
+            return seq_ids, target, {'mask': torch.BoolTensor(seq['attention_mask'])}
+        else:
+            return seq_ids, target
