@@ -219,6 +219,26 @@ class MultiClass(BaseTask):
             if name.endswith('_per_class'):
                 for spec_idx, spec in enumerate(self.dataset.species):
                     self.continual_metrics[name + '_' + spec].reset()
+
+
+class MaskedMultiClass(MultiClass):
+
+    def forward(self, batch, encoder, model, decoder, _state):
+        """Passes a batch through the encoder, backbone, and decoder"""
+
+        # z holds arguments such as sequence length
+        x, y, *z = batch # z holds extra dataloader info such as resolution
+        if len(z) == 0:
+            z = {}
+        else:
+            assert len(z) == 1 and isinstance(z[0], dict), "Dataloader must return dictionary of extra arguments"
+            z = z[0]
+
+        x, w = encoder(x) # w can model-specific constructions such as key_padding_mask for transformers or state for RNNs
+        x, state = model(x)
+        self._state = state
+        x, w = decoder(x, state=state, **z)
+        return x, y, w
         
 
 class HG38Task(LMTask):
@@ -364,4 +384,5 @@ registry = {
     'multiclass': MultiClass,
     'lm': LMTask,
     'hg38': HG38Task,
+    "masked_multiclass": MaskedMultiClass,
 }

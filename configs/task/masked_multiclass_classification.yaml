@@ -1,0 +1,5 @@
+_name_: masked_multiclass
+loss: cross_entropy
+metrics:
+  - accuracy
+torchmetrics: null
