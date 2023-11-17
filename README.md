@@ -613,6 +613,14 @@ Things to note:
 
 Train dataset will change during training, but the test set will always be fixed.  The test len/batch size is set the normal way in your command launch, ie, `dataset.batch_size`, `dataset`.
 
+### Getting logits from pretrained model
+<a name="logits"></a>
+
+Here's a simple [script](https://github.com/HazyResearch/hyena-dna/blob/main/evals/hg38_inference.py) to get the logits from a pretrained model.
+
+This isn't automated, so you'll need to download the weights manually from HF, and place them locally somewhere. You need the model head to get the logits.
+
+Difference from the [Huggingface](https://github.com/HazyResearch/hyena-dna/blob/main/huggingface.py): this script is meant for getting embeddings easily, which doesn't use the model head. We don't have a current use case for the logits yet, so there's some extra steps if you want those.
 
 ### Experimental
 
@@ -639,6 +647,7 @@ In practice, for short range tasks with not a lot padding, we noticed it didn't 
 - There's an experimential bidirectional option added.  See [Experimental](#Experimental).
 - We added an option to pass a mask and ignore padded tokens for downstream tasks.  See [Experimental](#Experimental).
 - Added some tips on [pretraining](#pretraining_custom) your on your own data.
+- Example to get [logits](#logits) from pretrained model.
 
 
 ## Citation
