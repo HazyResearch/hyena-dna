@@ -29,9 +29,13 @@ def stochastic_depth(input: torch.tensor, p: float, mode: str, training: bool = 
         Tensor[N, ...]: The randomly zeroed tensor.
     """
     if p < 0.0 or p > 1.0:
-        raise ValueError("drop probability has to be between 0 and 1, but got {}".format(p))
+        raise ValueError(
+            "drop probability has to be between 0 and 1, but got {}".format(p)
+        )
     if mode not in ["batch", "row"]:
-        raise ValueError("mode has to be either 'batch' or 'row', but got {}".format(mode))
+        raise ValueError(
+            "mode has to be either 'batch' or 'row', but got {}".format(mode)
+        )
     if not training or p == 0.0:
         return input
 
@@ -44,10 +48,12 @@ def stochastic_depth(input: torch.tensor, p: float, mode: str, training: bool = 
     noise = noise.bernoulli_(survival_rate).div_(survival_rate)
     return input * noise
 
+
 class StochasticDepth(nn.Module):
     """
     See :func:`stochastic_depth`.
     """
+
     def __init__(self, p: float, mode: str) -> None:
         # TODO(karan): need to upgrade to torchvision==0.11.0 to use StochasticDepth directly
         # from torchvision.ops import StochasticDepth
@@ -59,11 +65,12 @@ class StochasticDepth(nn.Module):
         return stochastic_depth(input, self.p, self.mode, self.training)
 
     def __repr__(self) -> str:
-        tmpstr = self.__class__.__name__ + '('
-        tmpstr += 'p=' + str(self.p)
-        tmpstr += ', mode=' + str(self.mode)
-        tmpstr += ')'
+        tmpstr = self.__class__.__name__ + "("
+        tmpstr += "p=" + str(self.p)
+        tmpstr += ", mode=" + str(self.mode)
+        tmpstr += ")"
         return tmpstr
+
 
 class DropoutNd(nn.Module):
     def __init__(self, p: float = 0.5, tie=True, transposed=True):
@@ -72,93 +79,108 @@ class DropoutNd(nn.Module):
         """
         super().__init__()
         if p < 0 or p >= 1:
-            raise ValueError("dropout probability has to be in [0, 1), " "but got {}".format(p))
+            raise ValueError(
+                "dropout probability has to be in [0, 1), " "but got {}".format(p)
+            )
         self.p = p
         self.tie = tie
         self.transposed = transposed
-        self.binomial = torch.distributions.binomial.Binomial(probs=1-self.p)
+        self.binomial = torch.distributions.binomial.Binomial(probs=1 - self.p)
 
     def forward(self, X):
-        """ X: (batch, dim, lengths...) """
+        """X: (batch, dim, lengths...)"""
         if self.training:
-            if not self.transposed: X = rearrange(X, 'b d ... -> b ... d')
+            if not self.transposed:
+                X = rearrange(X, "b d ... -> b ... d")
             # binomial = torch.distributions.binomial.Binomial(probs=1-self.p) # This is incredibly slow
-            mask_shape = X.shape[:2] + (1,)*(X.ndim-2) if self.tie else X.shape
+            mask_shape = X.shape[:2] + (1,) * (X.ndim - 2) if self.tie else X.shape
             # mask = self.binomial.sample(mask_shape)
-            mask = torch.rand(*mask_shape, device=X.device) < 1.-self.p
-            X = X * mask * (1.0/(1-self.p))
-            if not self.transposed: X = rearrange(X, 'b ... d -> b d ...')
+            mask = torch.rand(*mask_shape, device=X.device) < 1.0 - self.p
+            X = X * mask * (1.0 / (1 - self.p))
+            if not self.transposed:
+                X = rearrange(X, "b ... d -> b d ...")
             return X
         return X
 
 
 def Activation(activation=None, size=None, dim=-1):
-    if activation in [ None, 'id', 'identity', 'linear' ]:
+    if activation in [None, "id", "identity", "linear"]:
         return nn.Identity()
-    elif activation == 'tanh':
+    elif activation == "tanh":
         return nn.Tanh()
-    elif activation == 'relu':
+    elif activation == "relu":
         return nn.ReLU()
-    elif activation == 'gelu':
+    elif activation == "gelu":
         return nn.GELU()
-    elif activation in ['swish', 'silu']:
+    elif activation in ["swish", "silu"]:
         return nn.SiLU()
-    elif activation == 'glu':
+    elif activation == "glu":
         return nn.GLU(dim=dim)
-    elif activation == 'sigmoid':
+    elif activation == "sigmoid":
         return nn.Sigmoid()
-    elif activation == 'softplus':
+    elif activation == "softplus":
         return nn.Softplus()
-    elif activation in ['sqrelu', 'relu2']:
+    elif activation in ["sqrelu", "relu2"]:
         return SquaredReLU()
-    elif activation == 'laplace':
+    elif activation == "laplace":
         return Laplace()
-    elif activation == 'ln':
+    elif activation == "ln":
         return TransposedLN(dim)
     else:
-        raise NotImplementedError("hidden activation '{}' is not implemented".format(activation))
+        raise NotImplementedError(
+            "hidden activation '{}' is not implemented".format(activation)
+        )
+
 
 def get_initializer(name, activation=None):
-    if activation in [ None, 'id', 'identity', 'linear' ]:
-        nonlinearity = 'linear'
-    elif activation in ['relu', 'tanh', 'sigmoid']:
+    if activation in [None, "id", "identity", "linear"]:
+        nonlinearity = "linear"
+    elif activation in ["relu", "tanh", "sigmoid"]:
         nonlinearity = activation
-    elif activation in ['gelu', 'swish', 'silu']:
-        nonlinearity = 'relu' # Close to ReLU so approximate with ReLU's gain
+    elif activation in ["gelu", "swish", "silu"]:
+        nonlinearity = "relu"  # Close to ReLU so approximate with ReLU's gain
     else:
-        raise NotImplementedError(f"get_initializer: activation {activation} not supported")
+        raise NotImplementedError(
+            f"get_initializer: activation {activation} not supported"
+        )
 
-    if name == 'uniform':
+    if name == "uniform":
         initializer = partial(torch.nn.init.kaiming_uniform_, nonlinearity=nonlinearity)
-    elif name == 'normal':
+    elif name == "normal":
         initializer = partial(torch.nn.init.kaiming_normal_, nonlinearity=nonlinearity)
-    elif name == 'xavier':
+    elif name == "xavier":
         initializer = torch.nn.init.xavier_normal_
-    elif name == 'zero':
+    elif name == "zero":
         initializer = partial(torch.nn.init.constant_, val=0)
-    elif name == 'one':
+    elif name == "one":
         initializer = partial(torch.nn.init.constant_, val=1)
     else:
-        raise NotImplementedError(f"get_initializer: initializer type {name} not supported")
+        raise NotImplementedError(
+            f"get_initializer: initializer type {name} not supported"
+        )
 
     return initializer
 
+
 def LinearActivation(
-        d_input, d_output, bias=True,
-        zero_bias_init=False,
-        transposed=False,
-        initializer=None,
-        activation=None,
-        activate=False, # Apply activation as part of this module
-        weight_norm=False,
-        **kwargs,
-    ):
-    """ Returns a linear nn.Module with control over axes order, initialization, and activation """
+    d_input,
+    d_output,
+    bias=True,
+    zero_bias_init=False,
+    transposed=False,
+    initializer=None,
+    activation=None,
+    activate=False,  # Apply activation as part of this module
+    weight_norm=False,
+    **kwargs,
+):
+    """Returns a linear nn.Module with control over axes order, initialization, and activation"""
 
     # Construct core module
     # linear_cls = partial(nn.Conv1d, kernel_size=1) if transposed else nn.Linear
     linear_cls = TransposedLinear if transposed else nn.Linear
-    if activation == 'glu': d_output *= 2
+    if activation == "glu":
+        d_output *= 2
     linear = linear_cls(d_input, d_output, bias=bias, **kwargs)
 
     # Initialize weight
@@ -178,14 +200,17 @@ def LinearActivation(
         linear = nn.Sequential(linear, activation)
     return linear
 
+
 class SquaredReLU(nn.Module):
     def forward(self, x):
         # return F.relu(x)**2
         return torch.square(F.relu(x))  # Could this be faster?
 
+
 def laplace(x, mu=0.707107, sigma=0.282095):
     x = (x - mu).div(sigma * math.sqrt(2.0))
     return 0.5 * (1.0 + torch.erf(x))
+
 
 class Laplace(nn.Module):
     def __init__(self, mu=0.707107, sigma=0.282095):
@@ -198,7 +223,7 @@ class Laplace(nn.Module):
 
 
 class TransposedLinear(nn.Module):
-    """ Linear module on the second-to-last dimension
+    """Linear module on the second-to-last dimension
     Assumes shape (B, D, L), where L can be 1 or more axis
     """
 
@@ -206,7 +231,7 @@ class TransposedLinear(nn.Module):
         super().__init__()
 
         self.weight = nn.Parameter(torch.empty(d_output, d_input))
-        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5)) # nn.Linear default init
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))  # nn.Linear default init
         # nn.init.kaiming_uniform_(self.weight, nonlinearity='linear') # should be equivalent
 
         if bias:
@@ -219,16 +244,19 @@ class TransposedLinear(nn.Module):
 
     def forward(self, x):
         num_axis = len(x.shape[2:])  # num_axis in L, for broadcasting bias
-        y = contract('b u ..., v u -> b v ...', x, self.weight) + self.bias.view(-1, *[1]*num_axis)
+        y = contract("b u ..., v u -> b v ...", x, self.weight) + self.bias.view(
+            -1, *[1] * num_axis
+        )
         return y
 
 
 class TransposedLN(nn.Module):
-    """ LayerNorm module over second dimension
+    """LayerNorm module over second dimension
     Assumes shape (B, D, L), where L can be 1 or more axis
 
     This is slow and a dedicated CUDA/Triton implementation shuld provide substantial end-to-end speedup
     """
+
     def __init__(self, d, scalar=True):
         super().__init__()
         self.scalar = scalar
@@ -244,56 +272,60 @@ class TransposedLN(nn.Module):
         if self.scalar:
             # calc. stats over D dim / channels
             s, m = torch.std_mean(x, dim=1, unbiased=False, keepdim=True)
-            y = (self.s/s) * (x-m+self.m)
+            y = (self.s / s) * (x - m + self.m)
         else:
             # move channel to last axis, apply layer_norm, then move channel back to second axis
-            _x = self.ln(rearrange(x, 'b d ... -> b ... d'))
-            y = rearrange(_x, 'b ... d -> b d ...')
+            _x = self.ln(rearrange(x, "b d ... -> b ... d"))
+            y = rearrange(_x, "b ... d -> b d ...")
         return y
+
 
 class Normalization(nn.Module):
     def __init__(
         self,
         d,
-        transposed=False, # Length dimension is -1 or -2
-        _name_='layer',
-        **kwargs
+        transposed=False,  # Length dimension is -1 or -2
+        _name_="layer",
+        **kwargs,
     ):
         super().__init__()
         self.transposed = transposed
         self._name_ = _name_
 
-        if _name_ == 'layer':
-            self.channel = True # Normalize over channel dimension
+        if _name_ == "layer":
+            self.channel = True  # Normalize over channel dimension
             if self.transposed:
                 self.norm = TransposedLN(d, **kwargs)
             else:
                 self.norm = nn.LayerNorm(d, **kwargs)
-        elif _name_ == 'instance':
+        elif _name_ == "instance":
             self.channel = False
-            norm_args = {'affine': False, 'track_running_stats': False}
+            norm_args = {"affine": False, "track_running_stats": False}
             norm_args.update(kwargs)
-            self.norm = nn.InstanceNorm1d(d, **norm_args) # (True, True) performs very poorly
-        elif _name_ == 'batch':
+            self.norm = nn.InstanceNorm1d(
+                d, **norm_args
+            )  # (True, True) performs very poorly
+        elif _name_ == "batch":
             self.channel = False
-            norm_args = {'affine': True, 'track_running_stats': True}
+            norm_args = {"affine": True, "track_running_stats": True}
             norm_args.update(kwargs)
             self.norm = nn.BatchNorm1d(d, **norm_args)
-        elif _name_ == 'group':
+        elif _name_ == "group":
             self.channel = False
             self.norm = nn.GroupNorm(1, d, *kwargs)
-        elif _name_ == 'none':
+        elif _name_ == "none":
             self.channel = True
             self.norm = nn.Identity()
-        else: raise NotImplementedError
+        else:
+            raise NotImplementedError
 
     def forward(self, x):
         # Handle higher dimension logic
         shape = x.shape
         if self.transposed:
-            x = rearrange(x, 'b d ... -> b d (...)')
+            x = rearrange(x, "b d ... -> b d (...)")
         else:
-            x = rearrange(x, 'b ... d -> b (...)d ')
+            x = rearrange(x, "b ... d -> b (...)d ")
 
         # The cases of LayerNorm / no normalization are automatically handled in all cases
         # Instance/Batch Norm work automatically with transposed axes
@@ -309,32 +341,33 @@ class Normalization(nn.Module):
 
     def step(self, x, **kwargs):
         assert self._name_ in ["layer", "none"]
-        if self.transposed: x = x.unsqueeze(-1)
+        if self.transposed:
+            x = x.unsqueeze(-1)
         x = self.forward(x)
-        if self.transposed: x = x.squeeze(-1)
+        if self.transposed:
+            x = x.squeeze(-1)
         return x
 
-class TSNormalization(nn.Module):
 
+class TSNormalization(nn.Module):
     def __init__(self, method, horizon):
         super().__init__()
 
         self.method = method
         self.horizon = horizon
 
-
     def forward(self, x):
         # x must be BLD
-        if self.method == 'mean':
-            self.scale = x.abs()[:, :-self.horizon].mean(dim=1)[:, None, :]
+        if self.method == "mean":
+            self.scale = x.abs()[:, : -self.horizon].mean(dim=1)[:, None, :]
             return x / self.scale
-        elif self.method == 'last':
-            self.scale = x.abs()[:, -self.horizon-1][:, None, :]
+        elif self.method == "last":
+            self.scale = x.abs()[:, -self.horizon - 1][:, None, :]
             return x / self.scale
         return x
 
-class TSInverseNormalization(nn.Module):
 
+class TSInverseNormalization(nn.Module):
     def __init__(self, method, normalizer):
         super().__init__()
 
@@ -342,9 +375,10 @@ class TSInverseNormalization(nn.Module):
         self.normalizer = normalizer
 
     def forward(self, x):
-        if self.method == 'mean' or self.method == 'last':
+        if self.method == "mean" or self.method == "last":
             return x * self.normalizer.scale
         return x
+
 
 class ReversibleInstanceNorm1dInput(nn.Module):
     def __init__(self, d, transposed=False):
@@ -368,8 +402,8 @@ class ReversibleInstanceNorm1dInput(nn.Module):
             return x.transpose(-1, -2)
         return x
 
-class ReversibleInstanceNorm1dOutput(nn.Module):
 
+class ReversibleInstanceNorm1dOutput(nn.Module):
     def __init__(self, norm_input):
         super().__init__()
         self.transposed = norm_input.transposed

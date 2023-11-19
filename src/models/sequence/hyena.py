@@ -69,7 +69,7 @@ def fftconv_ref(u, k, D, dropout_mask, gelu=True, k_rev=None, bidirectional=Fals
         padded_length = seqlen + 2 * (seqlen // 2)
         pad_before = padded_length // 2 - (seqlen // 2)
         pad_after = padded_length - seqlen - pad_before
-        padded_u = F.pad(u, (pad_before, pad_after), mode='constant', value=0)
+        padded_u = F.pad(u, (pad_before, pad_after), mode="constant", value=0)
         u_f = torch.fft.rfft(padded_u.to(dtype=k.dtype), n=fft_size)
     else:
         u_f = torch.fft.rfft(u.to(dtype=k.dtype), n=fft_size)
@@ -258,7 +258,14 @@ class HyenaFilter(OptimModule):
                 force_fp16_output=torch.is_autocast_enabled(),
             )
         else:
-            y = fftconv_ref(x, k, bias, dropout_mask=None, gelu=False, bidirectional=self.bidirectional)
+            y = fftconv_ref(
+                x,
+                k,
+                bias,
+                dropout_mask=None,
+                gelu=False,
+                bidirectional=self.bidirectional,
+            )
             # y = (
             #     FFTConvFuncv2.apply(x, k.to(dtype=torch.float32))
             #     + bias.unsqueeze(-1) * x
@@ -446,4 +453,3 @@ class HyenaOperator(nn.Module):
     @property
     def d_output(self):
         return self.d_model
-

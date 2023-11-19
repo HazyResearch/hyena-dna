@@ -13,7 +13,13 @@ from transformers.tokenization_utils import AddedToken, PreTrainedTokenizer
 
 
 class CharacterTokenizer(PreTrainedTokenizer):
-    def __init__(self, characters: Sequence[str], model_max_length: int, padding_side: str='left', **kwargs):
+    def __init__(
+        self,
+        characters: Sequence[str],
+        model_max_length: int,
+        padding_side: str = "left",
+        **kwargs
+    ):
         """Character tokenizer for Hugging Face transformers.
         Args:
             characters (Sequence[str]): List of desired characters. Any character which

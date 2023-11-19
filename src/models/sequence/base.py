@@ -1,6 +1,7 @@
 from torch import nn
 import functools
 
+
 class SequenceModule(nn.Module):
     """Abstract sequence model class. All models must adhere to this interface
 
@@ -40,7 +41,9 @@ class SequenceModule(nn.Module):
         It is used by the rest of the pipeline (e.g. model backbone, decoder) to track the internal shapes of the full model.
         """
         if getattr(self, "_d_output", None) is None:
-            raise NotImplementedError("SequenceModule instantiation must specify d_output for decoder")
+            raise NotImplementedError(
+                "SequenceModule instantiation must specify d_output for decoder"
+            )
         return self._d_output
 
     @d_output.setter
@@ -69,9 +72,8 @@ class SequenceModule(nn.Module):
 
     @property
     def d_state(self):
-        """ Returns dimension of output of self.state_to_tensor """
+        """Returns dimension of output of self.state_to_tensor"""
         return None
-
 
     def default_state(self, *batch_shape, device=None):
         """Create initial state for a batch of inputs."""
@@ -87,8 +89,10 @@ class SequenceModule(nn.Module):
         """
         raise NotImplementedError
 
+
 def TransposedModule(module):
     """Wrap a SequenceModule class to accept transposed parameter, handle state, absorb kwargs"""
+
     # https://stackoverflow.com/a/65470430/1980685
     @functools.wraps(module, updated=())
     class TransposedModule(module):
@@ -97,14 +101,18 @@ def TransposedModule(module):
             self.transposed = transposed
 
         def forward(self, x, state=None, **kwargs):
-            if self.transposed: x = x.transpose(-1, -2)
-            x, next_state = super().forward(x, state) # Don't use kwarg because nn.LSTM
+            if self.transposed:
+                x = x.transpose(-1, -2)
+            x, next_state = super().forward(x, state)  # Don't use kwarg because nn.LSTM
             next_state = None if state is None else next_state
-            if self.transposed: x = x.transpose(-1,-2)
+            if self.transposed:
+                x = x.transpose(-1, -2)
             return x, next_state
+
     # https://stackoverflow.com/questions/5352781/how-to-set-class-names-dynamically
     # TransposedModule.__name__ = module.__name__ # functools wraps is better solution
     return TransposedModule
+
 
 @TransposedModule
 class SequenceIdentity(SequenceModule):
@@ -119,7 +127,6 @@ class SequenceIdentity(SequenceModule):
         super().__init__()
         self.d_model = d_model
         self.d_output = d_model
-
 
     def forward(self, x, state=None):
         return x, state

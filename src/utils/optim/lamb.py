@@ -61,8 +61,9 @@ class Lamb(Optimizer):
         https://arxiv.org/abs/1904.00962
     """
 
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-6,
-                 weight_decay=0, adam=False):
+    def __init__(
+        self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-6, weight_decay=0, adam=False
+    ):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -71,8 +72,7 @@ class Lamb(Optimizer):
             raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
-        defaults = dict(lr=lr, betas=betas, eps=eps,
-                        weight_decay=weight_decay)
+        defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         self.adam = adam
         super(Lamb, self).__init__(params, defaults)
 
@@ -88,27 +88,27 @@ class Lamb(Optimizer):
             loss = closure()
 
         for group in self.param_groups:
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
                 grad = p.grad.data
                 if grad.is_sparse:
-                    raise RuntimeError('Lamb does not support sparse gradients.')
+                    raise RuntimeError("Lamb does not support sparse gradients.")
 
                 state = self.state[p]
 
                 # State initialization
                 if len(state) == 0:
-                    state['step'] = 0
+                    state["step"] = 0
                     # Exponential moving average of gradient values
-                    state['exp_avg'] = torch.zeros_like(p.data)
+                    state["exp_avg"] = torch.zeros_like(p.data)
                     # Exponential moving average of squared gradient values
-                    state['exp_avg_sq'] = torch.zeros_like(p.data)
+                    state["exp_avg_sq"] = torch.zeros_like(p.data)
 
-                exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
-                beta1, beta2 = group['betas']
+                exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
+                beta1, beta2 = group["betas"]
 
-                state['step'] += 1
+                state["step"] += 1
 
                 # Decay the first and second moment running average coefficient
                 # m_t
@@ -120,24 +120,26 @@ class Lamb(Optimizer):
                 # bias_correction1 = 1 - beta1 ** state['step']
                 # bias_correction2 = 1 - beta2 ** state['step']
                 # Apply bias to lr to avoid broadcast.
-                step_size = group['lr'] # * math.sqrt(bias_correction2) / bias_correction1
+                step_size = group[
+                    "lr"
+                ]  # * math.sqrt(bias_correction2) / bias_correction1
 
                 weight_norm = p.data.norm(p=2).clamp_(0, 10)
 
-                adam_step = exp_avg / exp_avg_sq.sqrt().add(group['eps'])
-                if group['weight_decay'] != 0:
-                    adam_step.add_(group['weight_decay'], p.data)
+                adam_step = exp_avg / exp_avg_sq.sqrt().add(group["eps"])
+                if group["weight_decay"] != 0:
+                    adam_step.add_(group["weight_decay"], p.data)
 
                 adam_norm = adam_step.norm(p=2)
 
                 if weight_norm == 0.0 or adam_norm == 0.0:
                     trust_ratio = 1
                 else:
-                    trust_ratio = weight_norm / (adam_norm + group['eps'])
+                    trust_ratio = weight_norm / (adam_norm + group["eps"])
 
-                state['weight_norm'] = weight_norm
-                state['adam_norm'] = adam_norm
-                state['trust_ratio'] = trust_ratio
+                state["weight_norm"] = weight_norm
+                state["adam_norm"] = adam_norm
+                state["trust_ratio"] = trust_ratio
                 if self.adam:
                     trust_ratio = 1
 
@@ -147,8 +149,17 @@ class Lamb(Optimizer):
 
 
 @torch.jit.script
-def lamb_kernel(param, grad, exp_avg, exp_avg_sq, beta1: float,
-                beta2: float, step_size: float, eps: float, weight_decay: float):
+def lamb_kernel(
+    param,
+    grad,
+    exp_avg,
+    exp_avg_sq,
+    beta1: float,
+    beta2: float,
+    step_size: float,
+    eps: float,
+    weight_decay: float,
+):
     exp_avg = exp_avg * beta1 + (1 - beta1) * grad
     exp_avg_sq = exp_avg_sq * beta2 + (1 - beta2) * (grad * grad)
 
@@ -188,8 +199,9 @@ class JITLamb(Optimizer):
         https://arxiv.org/abs/1904.00962
     """
 
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-6,
-                 weight_decay=0, adam=False):
+    def __init__(
+        self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-6, weight_decay=0, adam=False
+    ):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -198,8 +210,7 @@ class JITLamb(Optimizer):
             raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
-        defaults = dict(lr=lr, betas=betas, eps=eps,
-                        weight_decay=weight_decay)
+        defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         self.adam = adam
         super().__init__(params, defaults)
 
@@ -215,37 +226,42 @@ class JITLamb(Optimizer):
             loss = closure()
 
         for group in self.param_groups:
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
                 grad = p.grad.data
                 if grad.is_sparse:
-                    raise RuntimeError('Lamb does not support sparse gradients.')
+                    raise RuntimeError("Lamb does not support sparse gradients.")
 
                 state = self.state[p]
 
                 # State initialization
                 if len(state) == 0:
-                    state['step'] = 0
+                    state["step"] = 0
                     # Exponential moving average of gradient values
-                    state['exp_avg'] = torch.zeros_like(p.data)
+                    state["exp_avg"] = torch.zeros_like(p.data)
                     # Exponential moving average of squared gradient values
-                    state['exp_avg_sq'] = torch.zeros_like(p.data)
+                    state["exp_avg_sq"] = torch.zeros_like(p.data)
 
-                exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
-                beta1, beta2 = group['betas']
+                exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
+                beta1, beta2 = group["betas"]
 
-                state['step'] += 1
-                step_size = group['lr']
+                state["step"] += 1
+                step_size = group["lr"]
 
-                param, exp_avg, exp_avg_sq = lamb_kernel(p.data, grad, exp_avg,
-                                                         exp_avg_sq, beta1,
-                                                         beta2, step_size,
-                                                         group['eps'],
-                                                         group['weight_decay'],
-                                                         )
-                state['exp_avg'] = exp_avg
-                state['exp_avg_sq'] = exp_avg_sq
+                param, exp_avg, exp_avg_sq = lamb_kernel(
+                    p.data,
+                    grad,
+                    exp_avg,
+                    exp_avg_sq,
+                    beta1,
+                    beta2,
+                    step_size,
+                    group["eps"],
+                    group["weight_decay"],
+                )
+                state["exp_avg"] = exp_avg
+                state["exp_avg_sq"] = exp_avg_sq
                 p.data = param
 
         return loss

@@ -80,7 +80,9 @@ class UploadCheckpointsAsArtifact(Callback):
         if self.upload_best_only:
             ckpts.add_file(trainer.checkpoint_callback.best_model_path)
         else:
-            for path in glob.glob(os.path.join(self.ckpt_dir, "**/*.ckpt"), recursive=True):
+            for path in glob.glob(
+                os.path.join(self.ckpt_dir, "**/*.ckpt"), recursive=True
+            ):
                 ckpts.add_file(path)
 
         experiment.log_artifact(ckpts)
@@ -132,7 +134,9 @@ class LogConfusionMatrix(Callback):
             sn.heatmap(confusion_matrix, annot=True, annot_kws={"size": 8}, fmt="g")
 
             # names should be uniqe or else charts from different experiments in wandb will overlap
-            experiment.log({f"confusion_matrix/{experiment.name}": wandb.Image(plt)}, commit=False)
+            experiment.log(
+                {f"confusion_matrix/{experiment.name}": wandb.Image(plt)}, commit=False
+            )
 
             # according to wandb docs this should also work but it crashes
             # experiment.log(f{"confusion_matrix/{experiment.name}": plt})
@@ -198,7 +202,9 @@ class LogF1PrecRecHeatmap(Callback):
             )
 
             # names should be uniqe or else charts from different experiments in wandb will overlap
-            experiment.log({f"f1_p_r_heatmap/{experiment.name}": wandb.Image(plt)}, commit=False)
+            experiment.log(
+                {f"f1_p_r_heatmap/{experiment.name}": wandb.Image(plt)}, commit=False
+            )
 
             # reset plot
             plt.clf()
@@ -253,16 +259,15 @@ class LogImagePredictions(Callback):
                 }
             )
 
+
 class LogDT(Callback):
-    """ Log the dt values (from NeurIPS 2021 LSSL submission) """
+    """Log the dt values (from NeurIPS 2021 LSSL submission)"""
+
     def on_train_epoch_end(self, trainer, pl_module):
         log_dict = {}
         for name, m in pl_module.model.named_modules():
-            if pl_module.hparams.train.get('log_dt', False) \
-                and hasattr(m, "log_dt"):
-                log_dict[f"{name}.log_dt"] = (
-                    m.log_dt.detach().cpu().numpy().flatten()
-                )
+            if pl_module.hparams.train.get("log_dt", False) and hasattr(m, "log_dt"):
+                log_dict[f"{name}.log_dt"] = m.log_dt.detach().cpu().numpy().flatten()
                 log_dict[f"{name}.log_dt.image"] = wandb.Image(
                     m.log_dt.detach().cpu().numpy().flatten().reshape(1, -1)
                 )

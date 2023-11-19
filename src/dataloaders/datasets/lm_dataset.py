@@ -8,10 +8,8 @@ import torch
 
 
 class LMDataset(torch.utils.data.Dataset):
-
     def __init__(self, tokens, seq_len, drop_last=True):
-        """tokens should be a numpy array
-        """
+        """tokens should be a numpy array"""
         self.seq_len = seq_len
         ntokens = len(tokens)
         if drop_last:
@@ -28,5 +26,7 @@ class LMDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         start_idx = idx * self.seq_len
         seq_len = min(self.seq_len, self.ntokens - 1 - start_idx)
-        data = torch.as_tensor(self.tokens[start_idx:(start_idx + seq_len + 1)].astype(np.int64))
+        data = torch.as_tensor(
+            self.tokens[start_idx : (start_idx + seq_len + 1)].astype(np.int64)
+        )
         return data[:-1], data[1:].clone()

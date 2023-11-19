@@ -4,6 +4,7 @@ import functools
 import hydra
 from omegaconf import ListConfig, DictConfig
 
+
 # TODO this is usually used in a pattern where it's turned into a list, so can just do that here
 def is_list(x):
     return isinstance(x, Sequence) and not isinstance(x, str)
@@ -58,8 +59,8 @@ def extract_attrs_from_obj(obj, *attrs):
 def auto_assign_attrs(cls, **kwargs):
     for k, v in kwargs.items():
         setattr(cls, k, v)
-        
-        
+
+
 def instantiate(registry, config, *args, partial=False, wrap=None, **kwargs):
     """
     registry: Dictionary mapping names to functions or target paths (e.g. {'model': 'models.SequenceModel'})
@@ -122,5 +123,3 @@ def omegaconf_filter_keys(d, fn=None):
         )
     else:
         return d
-
-

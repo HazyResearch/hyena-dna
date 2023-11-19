@@ -9,9 +9,12 @@ from sklearn.metrics import f1_score, roc_auc_score, matthews_corrcoef
 from torchmetrics import Metric
 from torchmetrics.classification import MulticlassRecall, MulticlassPrecision
 
+
 class CorrectAggregatedMetric(Metric):
     """This is needed to calculate some metrics b/c small batch sizes cause aggregation via a simple
-        average to be off, as some classes might not be present in batch but will get penalized with a 0."""
+    average to be off, as some classes might not be present in batch but will get penalized with a 0.
+    """
+
     def __init__(self, class_idx: int, dist_sync_on_step=False):
         # call `self.add_state`for every internal state that is needed for the metrics computations
         # dist_reduce_fx indicates the function that should be used to reduce
@@ -30,50 +33,58 @@ class CorrectAggregatedMetric(Metric):
         logits = logits.view(-1, logits.shape[-1])
         y = y.view(-1)
         assert preds.shape == y.shape, f"preds shape {preds.shape} != y shape {y.shape}"
-        self.numerator, self.denominator = self._update(self.numerator, self.denominator, preds, y)
+        self.numerator, self.denominator = self._update(
+            self.numerator, self.denominator, preds, y
+        )
 
     def compute(self):
         # compute final result
-        value = self.numerator.float() / self.denominator if self.denominator > 0 else torch.tensor(0.0)
+        value = (
+            self.numerator.float() / self.denominator
+            if self.denominator > 0
+            else torch.tensor(0.0)
+        )
         return value
 
     def reset(self):
         self.numerator = torch.tensor(0.0)
         self.denominator = torch.tensor(0.0)
 
+
 class AccuracyPerClass(CorrectAggregatedMetric):
-    """Calculate per class accuracy, i.e. P(y_hat = class_idx AND y = class_idx OR y_hat != class_idx AND y != class_idx)
-    """
+    """Calculate per class accuracy, i.e. P(y_hat = class_idx AND y = class_idx OR y_hat != class_idx AND y != class_idx)"""
+
     def _update(self, numerator, denominator, preds, y) -> tuple:
         # Filter down to the class of interest
         class_idx = self.class_idx
-        relevant_idxs = (y == class_idx)
+        relevant_idxs = y == class_idx
         numerator += (preds[relevant_idxs] == class_idx).sum()
         denominator += relevant_idxs.sum()
-        relevant_idxs = (y != class_idx)
+        relevant_idxs = y != class_idx
         numerator += (preds[relevant_idxs] != class_idx).sum()
         denominator += relevant_idxs.sum()
         return numerator, denominator
 
+
 class PrecisionPerClass(CorrectAggregatedMetric):
-    """Calculate per class precision, i.e. P(y_hat = y | y_hat = class_idx)
-    """
+    """Calculate per class precision, i.e. P(y_hat = y | y_hat = class_idx)"""
+
     def _update(self, numerator, denominator, preds, y) -> tuple:
         # Filter down to the class of interest
         class_idx = self.class_idx
-        relevant_idxs = (preds == class_idx)
+        relevant_idxs = preds == class_idx
         numerator += (preds[relevant_idxs] == y[relevant_idxs]).sum()
         denominator += relevant_idxs.sum()
         return numerator, denominator
 
 
 class RecallPerClass(CorrectAggregatedMetric):
-    """Calculate per class recall, i.e. P(y_hat = y | y = class_idx)
-    """
+    """Calculate per class recall, i.e. P(y_hat = y | y = class_idx)"""
+
     def _update(self, numerator, denominator, preds, y) -> tuple:
         # Filter down to the class of interest
         class_idx = self.class_idx
-        relevant_idxs = (y == class_idx)
+        relevant_idxs = y == class_idx
         numerator += (preds[relevant_idxs] == y[relevant_idxs]).sum()
         denominator += relevant_idxs.sum()
         return numerator, denominator
@@ -87,16 +98,16 @@ def mcc(logits, y):
 
 
 def last_k_ppl(logits, y, seq_len=1024, k=None):
-    '''
+    """
     Calculate perplexity for last k tokens in a sequence.
 
     logits: (batch_size * seq_len, vocab_size), note, already flattened
     y: (batch_size * seq_len), note, already flattened
     seq_len: int, length of each sequence in the batch
     k: if None, use all tokens in sequence
-    
+
     returns: (batch_size,)  ppl for each sequence in the batch
-    '''
+    """
 
     if k is None:
         k = 0  # use the entire sequence
@@ -115,13 +126,20 @@ def last_k_ppl(logits, y, seq_len=1024, k=None):
     logits = logits.reshape(-1, logits.shape[-1])
     y = y.reshape(-1)
     # get avg and put on cpu
-    return F.cross_entropy(logits, y, reduction='none').view(y.shape[0], -1).mean().exp().cpu()
+    return (
+        F.cross_entropy(logits, y, reduction="none")
+        .view(y.shape[0], -1)
+        .mean()
+        .exp()
+        .cpu()
+    )
 
 
 def _student_t_map(mu, sigma, nu):
     sigma = F.softplus(sigma)
     nu = 2.0 + F.softplus(nu)
     return mu.squeeze(axis=-1), sigma.squeeze(axis=-1), nu.squeeze(axis=-1)
+
 
 def student_t_loss(outs, y):
     mu, sigma, nu = outs[..., 0], outs[..., 1], outs[..., 2]
@@ -140,6 +158,7 @@ def student_t_loss(outs, y):
     ll = Z - nup1_half * torch.log1p(part1)
     return -ll.mean()
 
+
 def gaussian_ll_loss(outs, y):
     mu, sigma = outs[..., 0], outs[..., 1]
     y = y.squeeze(axis=-1)
@@ -151,6 +170,7 @@ def gaussian_ll_loss(outs, y):
     )
     return -ll.mean()
 
+
 def binary_cross_entropy(logits, y):
     # BCE loss requires squeezing last dimension of logits so it has the same shape as y
     # requires y to be float, since it's overloaded to represent a probability
@@ -160,13 +180,14 @@ def binary_cross_entropy(logits, y):
 def binary_accuracy(logits, y):
     return torch.eq(logits.squeeze(-1) >= 0, y).float().mean()
 
+
 def padded_cross_entropy(logits, y, pad_mask, pad_value=-1):
     """Will ignore the pad value in label (eg, -1)
-    
+
     logits: (batch_size, seq_len, vocab_size)
     y: (batch_size, seq_len)
     pad_mask: (batch_size, seq_len)
-    
+
     """
 
     # need to apply pad mask to y
@@ -204,7 +225,14 @@ def accuracy_ignore_index(logits, y, ignore_index=-100):
     preds = torch.argmax(logits, dim=-1)
     logits = logits.view(-1, logits.shape[-1])
     y = y.view(-1)
-    accuracy = tm_f.classification.accuracy(preds, y, 'multiclass', num_classes=num_classes, ignore_index=ignore_index, average='micro')
+    accuracy = tm_f.classification.accuracy(
+        preds,
+        y,
+        "multiclass",
+        num_classes=num_classes,
+        ignore_index=ignore_index,
+        average="micro",
+    )
     return accuracy
 
 
@@ -214,7 +242,9 @@ def accuracy_at_k(logits, y, k=1):
         # Mixup leads to this case: use argmax class
         y = y.argmax(dim=-1)
     y = y.view(-1)
-    return torch.topk(logits, k, dim=-1)[1].eq(y.unsqueeze(-1)).any(dim=-1).float().mean()
+    return (
+        torch.topk(logits, k, dim=-1)[1].eq(y.unsqueeze(-1)).any(dim=-1).float().mean()
+    )
 
 
 def f1_binary(logits, y):
@@ -274,9 +304,11 @@ def mse(outs, y, len_batch=None):
         y_masked = torch.masked_select(y, mask)
         return F.mse_loss(outs_masked, y_masked)
 
+
 def forecast_rmse(outs, y, len_batch=None):
     # TODO: generalize, currently for Monash dataset
-    return torch.sqrt(F.mse_loss(outs, y, reduction='none').mean(1)).mean()
+    return torch.sqrt(F.mse_loss(outs, y, reduction="none").mean(1)).mean()
+
 
 def mae(outs, y, len_batch=None):
     # assert outs.shape[:-1] == y.shape and outs.shape[-1] == 1
@@ -298,12 +330,12 @@ def mae(outs, y, len_batch=None):
 
 # Metrics that can depend on the loss
 def loss(x, y, loss_fn):
-    """ This metric may be useful because the training loss may add extra regularization (e.g. weight decay implemented as L2 penalty), while adding this as a metric skips the additional losses """
+    """This metric may be useful because the training loss may add extra regularization (e.g. weight decay implemented as L2 penalty), while adding this as a metric skips the additional losses"""
     return loss_fn(x, y)
 
 
 def bpb(x, y, loss_fn):
-    """ bits per byte (image density estimation, speech generation, char LM) """
+    """bits per byte (image density estimation, speech generation, char LM)"""
     return loss_fn(x, y) / math.log(2)
 
 
@@ -324,9 +356,9 @@ output_metric_fns = {
     "accuracy": accuracy,
     "accuracy_per_class": AccuracyPerClass,
     "accuracy_ignore_index": accuracy_ignore_index,
-    'accuracy@3': partial(accuracy_at_k, k=3),
-    'accuracy@5': partial(accuracy_at_k, k=5),
-    'accuracy@10': partial(accuracy_at_k, k=10),
+    "accuracy@3": partial(accuracy_at_k, k=3),
+    "accuracy@5": partial(accuracy_at_k, k=5),
+    "accuracy@10": partial(accuracy_at_k, k=10),
     "eval_loss": loss,
     "mcc": mcc,
     "mse": mse,
@@ -348,4 +380,3 @@ loss_metric_fns = {
     "ppl": ppl,
 }
 metric_fns = {**output_metric_fns, **loss_metric_fns}  # TODO py3.9
-

@@ -5,6 +5,7 @@ from functools import wraps
 import torch
 from torch import nn
 
+
 def wrap_kwargs(f):
     """
     Given a callable f that can consume some named arguments,
@@ -52,11 +53,14 @@ def wrap_kwargs(f):
     """
     sig = inspect.signature(f)
     # Check if f already has kwargs
-    has_kwargs = any([
-        param.kind == inspect.Parameter.VAR_KEYWORD
-        for param in sig.parameters.values()
-    ])
+    has_kwargs = any(
+        [
+            param.kind == inspect.Parameter.VAR_KEYWORD
+            for param in sig.parameters.values()
+        ]
+    )
     if has_kwargs:
+
         @wraps(f)
         def f_kwargs(*args, **kwargs):
             y = f(*args, **kwargs)
@@ -64,9 +68,13 @@ def wrap_kwargs(f):
                 return y
             else:
                 return y, {}
+
     else:
         param_kwargs = inspect.Parameter("kwargs", kind=inspect.Parameter.VAR_KEYWORD)
-        sig_kwargs = inspect.Signature(parameters=list(sig.parameters.values())+[param_kwargs])
+        sig_kwargs = inspect.Signature(
+            parameters=list(sig.parameters.values()) + [param_kwargs]
+        )
+
         @wraps(f)
         def f_kwargs(*args, **kwargs):
             bound = sig_kwargs.bind(*args, **kwargs)
@@ -79,15 +87,21 @@ def wrap_kwargs(f):
                 return *y[:-1], {**y[-1], **kwargs}
             else:
                 return y, kwargs
+
     return f_kwargs
 
+
 def discard_kwargs(f):
-    if f is None: return None
+    if f is None:
+        return None
     f_kwargs = wrap_kwargs(f)
+
     @wraps(f)
     def f_(*args, **kwargs):
         return f_kwargs(*args, **kwargs)[0]
+
     return f_
+
 
 def PassthroughSequential(*modules):
     """Special Sequential module that chains kwargs.
@@ -97,6 +111,7 @@ def PassthroughSequential(*modules):
     - Flatten inner Sequential modules
     - In case with 0 or 1 Module, rename the class for ease of inspection
     """
+
     def flatten(module):
         if isinstance(module, nn.Sequential):
             return sum([flatten(m) for m in module], [])

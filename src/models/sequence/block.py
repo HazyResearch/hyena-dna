@@ -20,19 +20,19 @@ import src.utils.registry as registry
 
 class SequenceResidualBlock(SequenceModule):
     def __init__(
-            self,
-            d_input,
-            i_layer=None, # Only needs to be passed into certain residuals like Decay
-            prenorm=True,
-            dropout=0.0,
-            tie_dropout=False,
-            transposed=False,
-            layer=None, # Config for black box module
-            residual=None, # Config for residual function
-            norm=None, # Config for normalization layer
-            pool=None,
-            drop_path=0.,
-        ):
+        self,
+        d_input,
+        i_layer=None,  # Only needs to be passed into certain residuals like Decay
+        prenorm=True,
+        dropout=0.0,
+        tie_dropout=False,
+        transposed=False,
+        layer=None,  # Config for black box module
+        residual=None,  # Config for residual function
+        norm=None,  # Config for normalization layer
+        pool=None,
+        drop_path=0.0,
+    ):
         super().__init__()
 
         self.i_layer = i_layer
@@ -47,7 +47,9 @@ class SequenceResidualBlock(SequenceModule):
             self.residual = None
             self.d_residual = self.layer.d_output
         else:
-            self.residual = utils.instantiate(residual_registry, residual, i_layer, d_input, self.layer.d_output)
+            self.residual = utils.instantiate(
+                residual_registry, residual, i_layer, d_input, self.layer.d_output
+            )
             self.d_residual = self.residual.d_output
 
         # Normalization
@@ -61,15 +63,22 @@ class SequenceResidualBlock(SequenceModule):
             self.norm = Normalization(d_norm, transposed=self.transposed, **norm)
 
         # Pool
-        self.pool = utils.instantiate(pool_registry, pool, self.d_residual, transposed=self.transposed)
+        self.pool = utils.instantiate(
+            pool_registry, pool, self.d_residual, transposed=self.transposed
+        )
 
         # Dropout
-        dropout_cls = partial(DropoutNd, transposed=self.transposed) if tie_dropout else nn.Dropout
+        dropout_cls = (
+            partial(DropoutNd, transposed=self.transposed)
+            if tie_dropout
+            else nn.Dropout
+        )
         self.drop = dropout_cls(dropout) if dropout > 0.0 else nn.Identity()
 
         # Stochastic depth
-        self.drop_path = StochasticDepth(drop_path, mode='row') if drop_path > 0.0 else nn.Identity()
-
+        self.drop_path = (
+            StochasticDepth(drop_path, mode="row") if drop_path > 0.0 else nn.Identity()
+        )
 
     @property
     def d_output(self):
@@ -90,19 +99,23 @@ class SequenceResidualBlock(SequenceModule):
         y = x
 
         # Pre-norm
-        if self.norm is not None and self.prenorm: y = self.norm(y)
+        if self.norm is not None and self.prenorm:
+            y = self.norm(y)
 
         # Black box layer
         y, state = self.layer(y, state=state, **kwargs)
 
         # Residual
-        if self.residual is not None: y = self.residual(x, self.drop_path(self.drop(y)), self.transposed)
+        if self.residual is not None:
+            y = self.residual(x, self.drop_path(self.drop(y)), self.transposed)
 
         # Post-norm
-        if self.norm is not None and not self.prenorm: y = self.norm(y)
+        if self.norm is not None and not self.prenorm:
+            y = self.norm(y)
 
         # Pool
-        if self.pool is not None: y, _ = self.pool(y)
+        if self.pool is not None:
+            y, _ = self.pool(y)
 
         return y, state
 
@@ -117,13 +130,17 @@ class SequenceResidualBlock(SequenceModule):
         y, state = self.layer.step(y, state, **kwargs)
 
         # Residual
-        if self.residual is not None: y = self.residual(x, y, transposed=False) # NOTE this would not work with concat residual function (catformer)
+        if self.residual is not None:
+            y = self.residual(
+                x, y, transposed=False
+            )  # NOTE this would not work with concat residual function (catformer)
 
         # Post-norm
         if self.norm is not None and not self.prenorm:
             y = self.norm.step(y)
 
         # Pool
-        if self.pool is not None: y, _ = self.pool(y)
+        if self.pool is not None:
+            y, _ = self.pool(y)
 
         return y, state

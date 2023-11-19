@@ -13,11 +13,14 @@ from einops.layers.torch import Rearrange
 from src.utils import is_list, permutations
 from torch.nn import functional as F
 
+
 def deprecated(cls_or_func):
     def _deprecated(*args, **kwargs):
         print(f"{cls_or_func} is deprecated")
         return cls_or_func(*args, **kwargs)
+
     return _deprecated
+
 
 # Default data path is environment variable or hippo/data
 if (default_data_path := os.getenv("DATA_PATH")) is None:
@@ -25,6 +28,7 @@ if (default_data_path := os.getenv("DATA_PATH")) is None:
     default_data_path = default_data_path / "data"
 else:
     default_data_path = Path(default_data_path).absolute()
+
 
 class DefaultCollateMixin:
     """Controls collating in the DataLoader
@@ -49,7 +53,9 @@ class DefaultCollateMixin:
         See InformerSequenceDataset for an example of this being used
         """
         x, y, *z = return_value
-        assert len(z) == len(cls._collate_arg_names), "Specify a name for each auxiliary data item returned by dataset"
+        assert len(z) == len(
+            cls._collate_arg_names
+        ), "Specify a name for each auxiliary data item returned by dataset"
         return x, y, {k: v for k, v in zip(cls._collate_arg_names, z)}
 
     @classmethod
@@ -96,8 +102,12 @@ class DefaultCollateMixin:
     collate_args = []
 
     def _dataloader(self, dataset, **loader_args):
-        collate_args = {k: loader_args[k] for k in loader_args if k in self.collate_args}
-        loader_args = {k: loader_args[k] for k in loader_args if k not in self.collate_args}
+        collate_args = {
+            k: loader_args[k] for k in loader_args if k in self.collate_args
+        }
+        loader_args = {
+            k: loader_args[k] for k in loader_args if k not in self.collate_args
+        }
         loader_cls = loader_registry[loader_args.pop("_name_", None)]
         return loader_cls(
             dataset=dataset,
@@ -116,11 +126,22 @@ class SequenceResolutionCollateMixin(DefaultCollateMixin):
         else:
             # Assume x is (B, L_0, L_1, ..., L_k, C) for x.ndim > 2 and (B, L) for x.ndim = 2
             assert x.ndim >= 2
-            n_resaxes = max(1, x.ndim - 2) # [AG 22/07/02] this line looks suspicious... are there cases with 2 axes?
+            n_resaxes = max(
+                1, x.ndim - 2
+            )  # [AG 22/07/02] this line looks suspicious... are there cases with 2 axes?
             # rearrange: b (l_0 res_0) (l_1 res_1) ... (l_k res_k) ... -> res_0 res_1 .. res_k b l_0 l_1 ...
             lhs = "b " + " ".join([f"(l{i} res{i})" for i in range(n_resaxes)]) + " ..."
-            rhs = " ".join([f"res{i}" for i in range(n_resaxes)]) + " b " + " ".join([f"l{i}" for i in range(n_resaxes)]) + " ..."
-            x = rearrange(x, lhs + " -> " + rhs, **{f'res{i}': resolution for i in range(n_resaxes)})
+            rhs = (
+                " ".join([f"res{i}" for i in range(n_resaxes)])
+                + " b "
+                + " ".join([f"l{i}" for i in range(n_resaxes)])
+                + " ..."
+            )
+            x = rearrange(
+                x,
+                lhs + " -> " + rhs,
+                **{f"res{i}": resolution for i in range(n_resaxes)},
+            )
             x = x[tuple([0] * n_resaxes)]
 
         return x
@@ -129,8 +150,8 @@ class SequenceResolutionCollateMixin(DefaultCollateMixin):
     def _return_callback(cls, return_value, resolution=None):
         return *return_value, {"rate": resolution}
 
+    collate_args = ["resolution"]
 
-    collate_args = ['resolution']
 
 class ImageResolutionCollateMixin(SequenceResolutionCollateMixin):
     """self.collate_fn(resolution, img_size) produces a collate function that resizes inputs to size img_size/resolution"""
@@ -145,23 +166,24 @@ class ImageResolutionCollateMixin(SequenceResolutionCollateMixin):
         if img_size is None:
             x = super()._collate_callback(x, resolution=resolution)
         else:
-            x = rearrange(x, 'b ... c -> b c ...') if channels_last else x
-            _size = round(img_size/resolution)
+            x = rearrange(x, "b ... c -> b c ...") if channels_last else x
+            _size = round(img_size / resolution)
             x = torchvision.transforms.functional.resize(
                 x,
                 size=[_size, _size],
                 interpolation=cls._interpolation,
                 antialias=cls._antialias,
             )
-            x = rearrange(x, 'b c ... -> b ... c') if channels_last else x
+            x = rearrange(x, "b c ... -> b ... c") if channels_last else x
         return x
 
     @classmethod
-    def _return_callback(cls, return_value, resolution=None, img_size=None, channels_last=True):
+    def _return_callback(
+        cls, return_value, resolution=None, img_size=None, channels_last=True
+    ):
         return *return_value, {"rate": resolution}
 
-    collate_args = ['resolution', 'img_size', 'channels_last']
-
+    collate_args = ["resolution", "img_size", "channels_last"]
 
 
 # class SequenceDataset(LightningDataModule):
@@ -222,8 +244,11 @@ class SequenceDataset(DefaultCollateMixin):
         return self._train_dataloader(self.dataset_train, **kwargs)
 
     def _train_dataloader(self, dataset, **kwargs):
-        if dataset is None: return
-        kwargs['shuffle'] = 'sampler' not in kwargs # shuffle cant be True if we have custom sampler
+        if dataset is None:
+            return
+        kwargs["shuffle"] = (
+            "sampler" not in kwargs
+        )  # shuffle cant be True if we have custom sampler
         return self._dataloader(dataset, **kwargs)
 
     def val_dataloader(self, **kwargs):
@@ -233,44 +258,63 @@ class SequenceDataset(DefaultCollateMixin):
         return self._eval_dataloader(self.dataset_test, **kwargs)
 
     def _eval_dataloader(self, dataset, **kwargs):
-        if dataset is None: return
+        if dataset is None:
+            return
         # Note that shuffle=False by default
         return self._dataloader(dataset, **kwargs)
 
     def __str__(self):
         return self._name_
 
+
 class ResolutionSequenceDataset(SequenceDataset, SequenceResolutionCollateMixin):
+    def _train_dataloader(
+        self, dataset, train_resolution=None, eval_resolutions=None, **kwargs
+    ):
+        if train_resolution is None:
+            train_resolution = [1]
+        if not is_list(train_resolution):
+            train_resolution = [train_resolution]
+        assert (
+            len(train_resolution) == 1
+        ), "Only one train resolution supported for now."
+        return super()._train_dataloader(
+            dataset, resolution=train_resolution[0], **kwargs
+        )
 
-    def _train_dataloader(self, dataset, train_resolution=None, eval_resolutions=None, **kwargs):
-        if train_resolution is None: train_resolution = [1]
-        if not is_list(train_resolution): train_resolution = [train_resolution]
-        assert len(train_resolution) == 1, "Only one train resolution supported for now."
-        return super()._train_dataloader(dataset, resolution=train_resolution[0], **kwargs)
-
-    def _eval_dataloader(self, dataset, train_resolution=None, eval_resolutions=None, **kwargs):
-        if dataset is None: return
-        if eval_resolutions is None: eval_resolutions = [1]
-        if not is_list(eval_resolutions): eval_resolutions = [eval_resolutions]
+    def _eval_dataloader(
+        self, dataset, train_resolution=None, eval_resolutions=None, **kwargs
+    ):
+        if dataset is None:
+            return
+        if eval_resolutions is None:
+            eval_resolutions = [1]
+        if not is_list(eval_resolutions):
+            eval_resolutions = [eval_resolutions]
 
         dataloaders = []
         for resolution in eval_resolutions:
-            dataloaders.append(super()._eval_dataloader(dataset, resolution=resolution, **kwargs))
+            dataloaders.append(
+                super()._eval_dataloader(dataset, resolution=resolution, **kwargs)
+            )
 
         return (
             {
                 None if res == 1 else str(res): dl
                 for res, dl in zip(eval_resolutions, dataloaders)
             }
-            if dataloaders is not None else None
+            if dataloaders is not None
+            else None
         )
 
-class ImageResolutionSequenceDataset(ResolutionSequenceDataset, ImageResolutionCollateMixin):
-    pass
 
+class ImageResolutionSequenceDataset(
+    ResolutionSequenceDataset, ImageResolutionCollateMixin
+):
+    pass
 
 
 # Registry for dataloader class
 loader_registry = {
-    None: torch.utils.data.DataLoader, # default case
+    None: torch.utils.data.DataLoader,  # default case
 }

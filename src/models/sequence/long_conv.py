@@ -15,27 +15,28 @@ from src.models.nn import LinearActivation, Activation, DropoutNd
 from src.models.sequence.block_fft import BlockFFT
 from src.models.sequence.long_conv_kernel import LongConvKernel
 
+
 class LongConv(nn.Module):
     def __init__(
-            self,
-            d_model,
-            l_max=1024,
-            channels=1,
-            bidirectional=False,
-            # Arguments for position-wise feedforward components
-            activation='gelu', # activation between conv and FF
-            postact='glu', # activation after FF
-            initializer=None, # initializer on FF
-            weight_norm=False, # weight normalization on FF
-            dropout=0.0, tie_dropout=False,
-            transposed=True, # axis ordering (B, L, D) or (B, D, L)
-            verbose=False,
-            block_fft_conv=False, # replace the FFT conv with Monarch blocks
-            block_fft_conv_args={},
-
-            # SSM Kernel arguments
-            **kernel_args,
-        ):
+        self,
+        d_model,
+        l_max=1024,
+        channels=1,
+        bidirectional=False,
+        # Arguments for position-wise feedforward components
+        activation="gelu",  # activation between conv and FF
+        postact="glu",  # activation after FF
+        initializer=None,  # initializer on FF
+        weight_norm=False,  # weight normalization on FF
+        dropout=0.0,
+        tie_dropout=False,
+        transposed=True,  # axis ordering (B, L, D) or (B, D, L)
+        verbose=False,
+        block_fft_conv=False,  # replace the FFT conv with Monarch blocks
+        block_fft_conv_args={},
+        # SSM Kernel arguments
+        **kernel_args,
+    ):
         """
         d_state: the dimension of the state, also denoted by N
         l_max: the maximum kernel length, also denoted by L
@@ -58,6 +59,7 @@ class LongConv(nn.Module):
         super().__init__()
         if verbose:
             import src.utils.train
+
             log = src.utils.train.get_logger(__name__)
             log.info(f"Constructing Long Conv (H, L) = ({d_model}, {l_max})")
 
@@ -76,12 +78,14 @@ class LongConv(nn.Module):
             channels *= 2
 
         # SSM Kernel
-        self.kernel = LongConvKernel(self.H, L=self.L, channels=channels, verbose=verbose, **kernel_args)
+        self.kernel = LongConvKernel(
+            self.H, L=self.L, channels=channels, verbose=verbose, **kernel_args
+        )
 
         if self.block_fft_conv:
             self.block_fft_u = BlockFFT(**self.block_fft_conv_args)
             self.block_fft_k = BlockFFT(**self.block_fft_conv_args)
-            
+
         # Pointwise
         self.activation = Activation(activation)
         # dropout_fn = nn.Dropout2d if self.transposed else nn.Dropout # Broken in torch==1.11
@@ -104,16 +108,17 @@ class LongConv(nn.Module):
                 weight_norm=weight_norm,
             )
 
-
-
-    def forward(self, u, state=None, rate=1.0, lengths=None, **kwargs): # absorbs return_output and transformer src mask
+    def forward(
+        self, u, state=None, rate=1.0, lengths=None, **kwargs
+    ):  # absorbs return_output and transformer src mask
         """
         u: (B H L) if self.transposed else (B L H)
         state: (H N) never needed, remnant from state spaces repo
 
         Returns: same shape as u
         """
-        if not self.transposed: u = u.transpose(-1, -2)
+        if not self.transposed:
+            u = u.transpose(-1, -2)
         L = u.size(-1)
         # Mask out padding tokens
         # TODO handle option for mask - instead of lengths, which assumes suffix padding
@@ -123,41 +128,51 @@ class LongConv(nn.Module):
             else:
                 lengths = None
         if lengths is not None:
-            assert isinstance(lengths, torch.Tensor) and lengths.ndim == 1 and lengths.size(0) in [1, u.size(0)]
-            mask = torch.where(torch.arange(L, device=lengths.device) < lengths[:, None, None], 1., 0.)
+            assert (
+                isinstance(lengths, torch.Tensor)
+                and lengths.ndim == 1
+                and lengths.size(0) in [1, u.size(0)]
+            )
+            mask = torch.where(
+                torch.arange(L, device=lengths.device) < lengths[:, None, None],
+                1.0,
+                0.0,
+            )
             u = u * mask
 
         # Compute SS Kernel
         L_kernel = L if self.L is None else min(L, round(self.L / rate))
-        k, _ =  self.kernel(L=L_kernel, rate=rate, state=state) # (C H L) (B C H L)
+        k, _ = self.kernel(L=L_kernel, rate=rate, state=state)  # (C H L) (B C H L)
 
         # Convolution
         if self.bidirectional:
-            k0, k1 = rearrange(k, '(s c) h l -> s c h l', s=2)
-            k = F.pad(k0, (0, L)) \
-                    + F.pad(k1.flip(-1), (L, 0))
+            k0, k1 = rearrange(k, "(s c) h l -> s c h l", s=2)
+            k = F.pad(k0, (0, L)) + F.pad(k1.flip(-1), (L, 0))
 
         if self.block_fft_conv:
-            k_f = self.block_fft_k(k.to(torch.complex64), N=L_kernel+L) # (C H L)
-            u_f = self.block_fft_u(u.to(torch.complex64), N=L_kernel+L) # (B H L)
-            y_f = contract('bhl,chl->bchl', u_f, k_f)
+            k_f = self.block_fft_k(k.to(torch.complex64), N=L_kernel + L)  # (C H L)
+            u_f = self.block_fft_u(u.to(torch.complex64), N=L_kernel + L)  # (B H L)
+            y_f = contract("bhl,chl->bchl", u_f, k_f)
             if self.learn_ifft:
-                y = self.block_fft_u(y_f, N=L_kernel+L,forward=False).real[..., :L]
+                y = self.block_fft_u(y_f, N=L_kernel + L, forward=False).real[..., :L]
             else:
-                y = torch.fft.ifft(y_f, n=L_kernel+L, dim=-1).real[..., :L] # (B C H L)
+                y = torch.fft.ifft(y_f, n=L_kernel + L, dim=-1).real[
+                    ..., :L
+                ]  # (B C H L)
         else:
-            k_f = torch.fft.rfft(k, n=L_kernel+L) # (C H L)
-            u_f = torch.fft.rfft(u, n=L_kernel+L) # (B H L)
-            y_f = contract('bhl,chl->bchl', u_f, k_f)
-            y = torch.fft.irfft(y_f, n=L_kernel+L)[..., :L] # (B C H L)
+            k_f = torch.fft.rfft(k, n=L_kernel + L)  # (C H L)
+            u_f = torch.fft.rfft(u, n=L_kernel + L)  # (B H L)
+            y_f = contract("bhl,chl->bchl", u_f, k_f)
+            y = torch.fft.irfft(y_f, n=L_kernel + L)[..., :L]  # (B C H L)
 
         # Compute skip connection
-        y = y + contract('bhl,ch->bchl', u, self.D)
+        y = y + contract("bhl,ch->bchl", u, self.D)
 
         # Reshape to flatten channels
-        y = rearrange(y, '... c h l -> ... (c h) l')
+        y = rearrange(y, "... c h l -> ... (c h) l")
 
-        if not self.transposed: y = y.transpose(-1, -2)
+        if not self.transposed:
+            y = y.transpose(-1, -2)
         y = self.activation(y)
         y = self.dropout(y)
         y = self.output_linear(y)

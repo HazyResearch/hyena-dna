@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from pyfaidx import Fasta
 import polars as pl
@@ -17,18 +16,31 @@ Dataset for sampling arbitrary intervals from the human genome.
 
 # helper functions
 
+
 def exists(val):
     return val is not None
+
 
 def coin_flip():
     return random() > 0.5
 
+
 # augmentations
 
-string_complement_map = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'a': 't', 'c': 'g', 'g': 'c', 't': 'a'}
+string_complement_map = {
+    "A": "T",
+    "C": "G",
+    "G": "C",
+    "T": "A",
+    "a": "t",
+    "c": "g",
+    "g": "c",
+    "t": "a",
+}
+
 
 def string_reverse_complement(seq):
-    rev_comp = ''
+    rev_comp = ""
     for base in seq[::-1]:
         if base in string_complement_map:
             rev_comp += string_complement_map[base]
@@ -38,26 +50,26 @@ def string_reverse_complement(seq):
     return rev_comp
 
 
-class FastaInterval():
+class FastaInterval:
     def __init__(
         self,
         *,
         fasta_file,
         # max_length = None,
-        return_seq_indices = False,
-        shift_augs = None,
-        rc_aug = False,
-        pad_interval = False,
+        return_seq_indices=False,
+        shift_augs=None,
+        rc_aug=False,
+        pad_interval=False,
     ):
         fasta_file = Path(fasta_file)
-        assert fasta_file.exists(), 'path to fasta file must exist'
+        assert fasta_file.exists(), "path to fasta file must exist"
 
         self.seqs = Fasta(str(fasta_file))
         self.return_seq_indices = return_seq_indices
         # self.max_length = max_length # -1 for adding sos or eos token
         self.shift_augs = shift_augs
         self.rc_aug = rc_aug
-        self.pad_interval = pad_interval        
+        self.pad_interval = pad_interval
 
         # calc len of each chromosome in fasta file, store in dict
         self.chr_lens = {}
@@ -68,8 +80,7 @@ class FastaInterval():
             # self.chr_lens[chr_name] = truncate_len
             self.chr_lens[chr_name] = len(self.seqs[chr_name])
 
-
-    def __call__(self, chr_name, start, end, max_length, return_augs = False):
+    def __call__(self, chr_name, start, end, max_length, return_augs=False):
         """
         max_length passed from dataset, not from init
         """
@@ -119,16 +130,17 @@ class FastaInterval():
             seq = string_reverse_complement(seq)
 
         if self.pad_interval:
-            seq = ('.' * left_padding) + seq + ('.' * right_padding)
+            seq = ("." * left_padding) + seq + ("." * right_padding)
 
         return seq
 
+
 class HG38Dataset(torch.utils.data.Dataset):
 
-    '''
+    """
     Loop thru bed file, retrieve (chr, start, end), query fasta file for sequence.
-    
-    '''
+
+    """
 
     def __init__(
         self,
@@ -145,33 +157,36 @@ class HG38Dataset(torch.utils.data.Dataset):
         rc_aug=False,
         return_augs=False,
         replace_N_token=False,  # replace N token with pad token
-        pad_interval = False,  # options for different padding
+        pad_interval=False,  # options for different padding
     ):
-
         self.max_length = max_length
-        self.pad_max_length = pad_max_length if pad_max_length is not None else max_length
+        self.pad_max_length = (
+            pad_max_length if pad_max_length is not None else max_length
+        )
         self.tokenizer_name = tokenizer_name
         self.tokenizer = tokenizer
         self.return_augs = return_augs
         self.add_eos = add_eos
-        self.replace_N_token = replace_N_token  
-        self.pad_interval = pad_interval         
+        self.replace_N_token = replace_N_token
+        self.pad_interval = pad_interval
 
         bed_path = Path(bed_file)
-        assert bed_path.exists(), 'path to .bed file must exist'
+        assert bed_path.exists(), "path to .bed file must exist"
 
         # read bed file
-        df_raw = pd.read_csv(str(bed_path), sep = '\t', names=['chr_name', 'start', 'end', 'split'])
+        df_raw = pd.read_csv(
+            str(bed_path), sep="\t", names=["chr_name", "start", "end", "split"]
+        )
         # select only split df
-        self.df = df_raw[df_raw['split'] == split]
+        self.df = df_raw[df_raw["split"] == split]
 
         self.fasta = FastaInterval(
-            fasta_file = fasta_file,
+            fasta_file=fasta_file,
             # max_length = max_length,
-            return_seq_indices = return_seq_indices,
-            shift_augs = shift_augs,
-            rc_aug = rc_aug,
-            pad_interval = pad_interval,
+            return_seq_indices=return_seq_indices,
+            shift_augs=shift_augs,
+            rc_aug=rc_aug,
+            pad_interval=pad_interval,
         )
 
     def __len__(self):
@@ -187,15 +202,22 @@ class HG38Dataset(torch.utils.data.Dataset):
         # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
 
-        seq = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs)
+        seq = self.fasta(
+            chr_name,
+            start,
+            end,
+            max_length=self.max_length,
+            return_augs=self.return_augs,
+        )
 
-        if self.tokenizer_name == 'char':
-
-            seq = self.tokenizer(seq,
+        if self.tokenizer_name == "char":
+            seq = self.tokenizer(
+                seq,
                 padding="max_length",
                 max_length=self.pad_max_length,
                 truncation=True,
-                add_special_tokens=False)  # add cls and eos token (+2)
+                add_special_tokens=False,
+            )  # add cls and eos token (+2)
 
             seq = seq["input_ids"]  # get input_ids
 
@@ -204,25 +226,28 @@ class HG38Dataset(torch.utils.data.Dataset):
                 # append list seems to be faster than append tensor
                 seq.append(self.tokenizer.sep_token_id)
 
-        elif self.tokenizer_name == 'bpe':
-            seq = self.tokenizer(seq, 
-                # add_special_tokens=False, 
+        elif self.tokenizer_name == "bpe":
+            seq = self.tokenizer(
+                seq,
+                # add_special_tokens=False,
                 padding="max_length",
                 max_length=self.pad_max_length,
                 truncation=True,
-            ) 
+            )
             # get input_ids
             if self.add_eos:
                 seq = seq["input_ids"][1:]  # remove the bos, keep the eos token
             else:
                 seq = seq["input_ids"][1:-1]  # remove both special tokens
-        
+
         # convert to tensor
         seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
 
         if self.replace_N_token:
             # replace N token with a pad token, so we can ignore it in the loss
-            seq = self.replace_value(seq, self.tokenizer._vocab_str_to_int['N'], self.tokenizer.pad_token_id)
+            seq = self.replace_value(
+                seq, self.tokenizer._vocab_str_to_int["N"], self.tokenizer.pad_token_id
+            )
 
         data = seq[:-1].clone()  # remove eos
         target = seq[1:].clone()  # offset by 1, includes eos

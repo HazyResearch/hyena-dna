@@ -13,12 +13,13 @@ Just a fixed length dataset for 2 test chromosomes, to ensure the test set is th
 def exists(val):
     return val is not None
 
+
 class HG38FixedDataset(torch.utils.data.Dataset):
 
-    '''
+    """
     Loop thru bed file, retrieve (chr, start, end), query fasta file for sequence.
     Returns a generator that retrieves the sequence.
-    '''
+    """
 
     def __init__(
         self,
@@ -30,22 +31,21 @@ class HG38FixedDataset(torch.utils.data.Dataset):
         add_eos=False,
         rc_aug=False,  # not yet implemented
     ):
-
         self.max_length = max_length
-        self.pad_max_length = pad_max_length if pad_max_length is not None else max_length
+        self.pad_max_length = (
+            pad_max_length if pad_max_length is not None else max_length
+        )
         self.tokenizer = tokenizer
         self.add_eos = add_eos
 
-
         # create a list of intervals from chr_ranges, from start to end of size max_length
         self.intervals = self.create_fixed_intervals(chr_ranges, self.max_length)
-        
+
         # open fasta file
         fasta_file = Path(fasta_file)
-        assert fasta_file.exists(), 'path to fasta file must exist'
+        assert fasta_file.exists(), "path to fasta file must exist"
 
         self.seqs = Fasta(str(fasta_file), sequence_always_upper=True)
-
 
     def create_fixed_intervals(self, chr_ranges, max_length):
         """
@@ -56,17 +56,16 @@ class HG38FixedDataset(torch.utils.data.Dataset):
         """
 
         print("creating new test set with fixed intervals of max_length...")
-    
+
         intervals = []
 
         # loop thru each chr in chr_ranges, and create intervals of max_length from start to end
         for chr_name, (start, end) in chr_ranges.items():
-
             # create a list of intervals from start to end of size max_length
             for i in range(start, end, max_length):
                 interval_end = min(i + max_length, end)
                 intervals.append((chr_name, i, interval_end))
-                
+
         return intervals
 
     def __len__(self):
@@ -81,11 +80,13 @@ class HG38FixedDataset(torch.utils.data.Dataset):
         chr_name, start, end = (row[0], row[1], row[2])
         seq = str(self.seqs[chr_name][start:end])
 
-        seq = self.tokenizer(seq,
+        seq = self.tokenizer(
+            seq,
             padding="max_length",
             max_length=self.pad_max_length,
             truncation=True,
-            add_special_tokens=False)  # add cls and eos token (+2)
+            add_special_tokens=False,
+        )  # add cls and eos token (+2)
 
         seq = seq["input_ids"]  # get input_ids
 
@@ -95,7 +96,7 @@ class HG38FixedDataset(torch.utils.data.Dataset):
             # seq = seq[1:]
             # append list seems to be faster than append tensor
             seq.append(self.tokenizer.sep_token_id)
-        
+
         # convert to tensor
         seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
 

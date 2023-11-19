@@ -13,6 +13,7 @@ import src.utils.config
 from src.models.sequence.block import SequenceResidualBlock
 from src.models.nn.components import Normalization
 
+
 class Encoder(nn.Module):
     """Encoder abstraction
     Accepts a tensor and optional kwargs. Outside of the main tensor, all other arguments should be kwargs.
@@ -32,11 +33,13 @@ class Encoder(nn.Module):
         """
         return x, {}
 
+
 class PositionalIDEncoder(Encoder):
     def forward(self, x):
         position_ids = torch.arange(x.shape[-1], dtype=torch.long, device=x.device)
-        position_ids = repeat(position_ids, 'l -> b l', b=x.shape[0])
-        return x, { 'position_ids': position_ids }
+        position_ids = repeat(position_ids, "l -> b l", b=x.shape[0])
+        return x, {"position_ids": position_ids}
+
 
 # Adapted from https://github.com/pytorch/examples/blob/master/word_language_model/model.py
 class PositionalEncoder(Encoder):
@@ -103,7 +106,7 @@ class ClassEmbedding(Encoder):
 
 
 class Conv1DEncoder(Encoder):
-    def __init__(self, d_input, d_model, kernel_size=25, stride=1, padding='same'):
+    def __init__(self, d_input, d_model, kernel_size=25, stride=1, padding="same"):
         super().__init__()
         self.conv = nn.Conv1d(
             in_channels=d_input,
@@ -118,10 +121,11 @@ class Conv1DEncoder(Encoder):
         x = self.conv(x.transpose(1, 2)).transpose(1, 2)
         return x
 
+
 class LayerEncoder(Encoder):
     """Use an arbitrary SequenceModule layer"""
 
-    def __init__(self, d_model, prenorm=False, norm='layer', layer=None):
+    def __init__(self, d_model, prenorm=False, norm="layer", layer=None):
         super().__init__()
 
         # Simple stack of blocks
@@ -130,13 +134,13 @@ class LayerEncoder(Encoder):
             d_input=d_model,
             prenorm=prenorm,
             layer=layer,
-            residual='R',
+            residual="R",
             norm=norm,
             pool=None,
         )
 
     def forward(self, x):
-        x, _ = self.layer(x) # Discard state
+        x, _ = self.layer(x)  # Discard state
         return x
 
 
@@ -147,47 +151,54 @@ class TimestampEmbeddingEncoder(Encoder):
     """
 
     cardinalities = {
-        'day': (1, 31),
-        'hour': (0, 23),
-        'minute': (0, 59),
-        'second': (0, 59),
-        'month': (1, 12),
-        'year': (1950, 2010), # (1800, 3000) used to be (1970, datetime.datetime.now().year + 1) but was not enough for all datasets in monash
-        'dayofweek': (0, 6),
-        'dayofyear': (1, 366),
-        'quarter': (1, 4),
-        'week': (1, 53),
-        'is_month_start': (0, 1),
-        'is_month_end': (0, 1),
-        'is_quarter_start': (0, 1),
-        'is_quarter_end': (0, 1),
-        'is_year_start': (0, 1),
-        'is_year_end': (0, 1),
-        'is_leap_year': (0, 1),
+        "day": (1, 31),
+        "hour": (0, 23),
+        "minute": (0, 59),
+        "second": (0, 59),
+        "month": (1, 12),
+        "year": (
+            1950,
+            2010,
+        ),  # (1800, 3000) used to be (1970, datetime.datetime.now().year + 1) but was not enough for all datasets in monash
+        "dayofweek": (0, 6),
+        "dayofyear": (1, 366),
+        "quarter": (1, 4),
+        "week": (1, 53),
+        "is_month_start": (0, 1),
+        "is_month_end": (0, 1),
+        "is_quarter_start": (0, 1),
+        "is_quarter_end": (0, 1),
+        "is_year_start": (0, 1),
+        "is_year_end": (0, 1),
+        "is_leap_year": (0, 1),
     }
 
     def __init__(self, d_model, table=False, features=None):
         super().__init__()
         self.table = table
-        self.ranges = {k: max_val - min_val + 2 for k, (min_val, max_val) in self.cardinalities.items()} # padding for null included
+        self.ranges = {
+            k: max_val - min_val + 2
+            for k, (min_val, max_val) in self.cardinalities.items()
+        }  # padding for null included
 
         if features is None:
             pass
         else:
-            self.cardinalities = {k: v for k, v in self.cardinalities.items() if k in features}
+            self.cardinalities = {
+                k: v for k, v in self.cardinalities.items() if k in features
+            }
 
         if table:
-            self.embedding = nn.ModuleDict({
-                attr: nn.Embedding(maxval - minval + 2, d_model, padding_idx=0)
-                for attr, (minval, maxval) in self.cardinalities.items()
-            })
+            self.embedding = nn.ModuleDict(
+                {
+                    attr: nn.Embedding(maxval - minval + 2, d_model, padding_idx=0)
+                    for attr, (minval, maxval) in self.cardinalities.items()
+                }
+            )
         else:
-            self.embedding = nn.ModuleDict({
-                attr: nn.Linear(1, d_model)
-                for attr in self.cardinalities
-            })
-
-
+            self.embedding = nn.ModuleDict(
+                {attr: nn.Linear(1, d_model) for attr in self.cardinalities}
+            )
 
     def forward(self, x, timestamps=None):
         for attr in timestamps:
@@ -197,9 +208,11 @@ class TimestampEmbeddingEncoder(Encoder):
             if self.table:
                 x = x + self.embedding[attr](timestamps[attr].to(torch.long))
             else:
-                x = x + self.embedding[attr]((2 * timestamps[attr] / self.ranges[attr] - 1).unsqueeze(-1))
+                x = x + self.embedding[attr](
+                    (2 * timestamps[attr] / self.ranges[attr] - 1).unsqueeze(-1)
+                )
 
-            #x = x + self.embedding(timestamps[attr].to(torch.float)).unsqueeze(1)
+            # x = x + self.embedding(timestamps[attr].to(torch.float)).unsqueeze(1)
         return x
 
 
@@ -217,7 +230,9 @@ class TimeEncoder(Encoder):
         self.mask_embed = nn.Embedding(2, d_model)
 
     def forward(self, x, mark=None, mask=None):
-        assert mark is not None and mask is not None, "Extra arguments should be returned by collate function"
+        assert (
+            mark is not None and mask is not None
+        ), "Extra arguments should be returned by collate function"
         if self.timeenc == 0:
             assert mark.size(-1) == len(self.encoders)
             embeddings = [
@@ -234,7 +249,10 @@ class PackedEncoder(Encoder):
     def forward(self, x, len_batch=None):
         assert len_batch is not None
         x = nn.utils.rnn.pack_padded_sequence(
-            x, len_batch.cpu(), enforce_sorted=False, batch_first=True,
+            x,
+            len_batch.cpu(),
+            enforce_sorted=False,
+            batch_first=True,
         )
         return x
 
@@ -256,7 +274,6 @@ class Conv2DPatchEncoder(Encoder):
     """
 
     def __init__(self, d_input, d_model, filter_sizes, flat=False):
-
         """
         d_input: dim of encoder input (data dimension)
         d_model: dim of encoder output (model dimension)
@@ -271,19 +288,20 @@ class Conv2DPatchEncoder(Encoder):
         super().__init__()
         assert len(filter_sizes) == 2
 
-        self.encoder = nn.Conv2d(d_input, d_model, kernel_size=(fh, fw), stride=(fh, fw))
+        self.encoder = nn.Conv2d(
+            d_input, d_model, kernel_size=(fh, fw), stride=(fh, fw)
+        )
 
     def forward(self, x):
-
         """
         x shape expected = [b, h, w, c]
         returns tuple with x, with new shape = [b, seq_len, c_out]
 
         """
 
-        x = rearrange(x, 'b h w c -> b c h w')
+        x = rearrange(x, "b h w c -> b c h w")
         x = self.encoder(x)
-        x = rearrange(x, 'b c h w -> b (h w) c')
+        x = rearrange(x, "b c h w -> b (h w) c")
         return x
 
 

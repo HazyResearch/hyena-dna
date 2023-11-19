@@ -45,9 +45,14 @@ class Perplexity(Metric):
 
     def __init__(self, **kwargs: Dict[str, Any]):
         super().__init__(**kwargs)
-        self.add_state("total_log_probs", default=torch.tensor(0.0, dtype=torch.float64),
-                       dist_reduce_fx="sum")
-        self.add_state("count", default=torch.tensor(0, dtype=torch.int64), dist_reduce_fx="sum")
+        self.add_state(
+            "total_log_probs",
+            default=torch.tensor(0.0, dtype=torch.float64),
+            dist_reduce_fx="sum",
+        )
+        self.add_state(
+            "count", default=torch.tensor(0, dtype=torch.int64), dist_reduce_fx="sum"
+        )
 
         self.loss_fn = CrossEntropyLoss()
 
@@ -72,9 +77,10 @@ class Perplexity(Metric):
         """
         return torch.exp(self.total_log_probs / self.count)
 
+
 class NumTokens(Metric):
-    """Keep track of how many tokens we've seen.
-    """
+    """Keep track of how many tokens we've seen."""
+
     # TODO: how do we prevent the reset between the epochs? The reset happens on the 1st batch
     # of the next epoch.
     # Right now the hack is that we override reset(), which would mess up the forward method.
@@ -87,10 +93,16 @@ class NumTokens(Metric):
 
     def __init__(self, **kwargs: Dict[str, Any]):
         super().__init__(**kwargs)
-        self.add_state("count", default=torch.tensor(0, dtype=torch.int64), dist_reduce_fx="sum",
-                       persistent=True)  # We want the count to be saved to state-dict
+        self.add_state(
+            "count",
+            default=torch.tensor(0, dtype=torch.int64),
+            dist_reduce_fx="sum",
+            persistent=True,
+        )  # We want the count to be saved to state-dict
         if parallel_state is not None and not parallel_state.is_unitialized():
-            self.tensor_parallel_world_size = parallel_state.get_tensor_model_parallel_world_size()
+            self.tensor_parallel_world_size = (
+                parallel_state.get_tensor_model_parallel_world_size()
+            )
         else:
             self.tensor_parallel_world_size = 1
 
@@ -113,6 +125,7 @@ class NumTokens(Metric):
         """
         self.update(*args, **kwargs)
         return self.compute()
+
 
 torchmetric_fns = {
     "perplexity": Perplexity,
