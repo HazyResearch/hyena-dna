@@ -44,10 +44,11 @@ trainer:
   # strategy: null
 
 dataset:
-  _name_: fasta
+  _name_: 1kgp
   batch_size: 256
   max_length: 1024
-  fasta: /cellar/users/dlaub/projects/HyenaDNA_collab/data/human/hg38.ml.fa
+  ref: ???
+  pgen: ???
   bed: /cellar/users/dlaub/projects/HyenaDNA_collab/data/human/sequences.bed
   max_memory_gb: 64
   __train_len: ${div_up:1_000_000_000, ${.max_length}}
