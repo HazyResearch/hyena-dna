@@ -192,17 +192,12 @@ class HG38Dataset(torch.utils.data.Dataset):
         if self.tokenizer_name == 'char':
 
             seq = self.tokenizer(seq,
+                add_special_tokens=True if self.add_eos else False,  # this is what controls adding eos
                 padding="max_length",
-                max_length=self.pad_max_length,
+                max_length=self.max_length,
                 truncation=True,
-                add_special_tokens=False)  # add cls and eos token (+2)
-
+            )
             seq = seq["input_ids"]  # get input_ids
-
-            # need to handle eos here
-            if self.add_eos:
-                # append list seems to be faster than append tensor
-                seq.append(self.tokenizer.sep_token_id)
 
         elif self.tokenizer_name == 'bpe':
             seq = self.tokenizer(seq, 
