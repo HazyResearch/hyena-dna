@@ -47,9 +47,9 @@ dataset:
   _name_: 1kgp
   batch_size: 256
   max_length: 1024
-  ref: ???
-  pgen: ???
-  bed: /cellar/users/dlaub/projects/HyenaDNA_collab/data/human/sequences.bed
+  ref: /carter/users/dlaub/data/1kGP/GRCh38_full_analysis_set_plus_decoy_hla.fa
+  pgen: /carter/users/dlaub/data/1kGP/1kGP.pgen
+  bed: /carter/users/dlaub/data/basenji_barnyard/human/sequences.bed
   max_memory_gb: 64
   __train_len: ${div_up:1_000_000_000, ${.max_length}}
 

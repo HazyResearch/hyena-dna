@@ -33,7 +33,7 @@ def _tokenize(
 
 
 @define
-class _Transform:
+class Tokenize:
     name: str
     tokenize_table: Dict[bytes, int]
     add_eos: bool
@@ -69,7 +69,7 @@ class Fasta(SequenceDataset):
         self._max_length = max_length
         self._batch_size = batch_size
         self.max_memory_gb = max_memory_gb
-        self.transform = _Transform(
+        self.transform = Tokenize(
             name=self.name,
             tokenize_table={b"A": 7, b"C": 8, b"G": 9, b"T": 10, b"N": 11},
             add_eos=True,
@@ -240,7 +240,7 @@ class ThousandGP(SequenceDataset):
         self._max_length = max_length
         self._batch_size = batch_size
         self.max_memory_gb = max_memory_gb
-        self.transform = _Transform(
+        self.transform = Tokenize(
             name=self.name,
             tokenize_table={b"A": 7, b"C": 8, b"G": 9, b"T": 10, b"N": 11},
             add_eos=True,
