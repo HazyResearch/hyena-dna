@@ -182,27 +182,21 @@ In general, get comfortable with the configs in `configs/experiments/hg38`, all 
 
 First step is download the Human Reference Genome data. It's comprised of 2 files, 1 with all the sequences (the .fasta file), and with the intervals we use (.bed file).
 
-However, you'll need to have a GCP account to download the exact files we used (from the Enformer), and it cost a little to download. At some point we'll try to upload somewhere to share that data.
-
 The file structure should look like
 ```
 data
 |-- hg38/
     |-- hg38.ml.fa
-    |-- hg38.ml.fa.fai
     |-- human-sequences.bed
 
 ```
 
-- Download fasta (.fa format) file (of the entire human genome) into hyena-dna/data/hg38.  ~24 chromosomes in the whole genome (merged into 1 file), each chromosome is a continuous sequence, basically
+- Download fasta (.fa format) file (of the entire human genome) into hyena-dna/data/hg38.  ~24 chromosomes in the whole genome (merged into 1 file), each chromosome is a continuous sequence, basically. Then download the .bed file with sequence intervals (contains chromosome name, start, end, split, which then allow you to retrieve from the fasta file)  
 
 ```
-gsutil -u hai-gcp-hippo cp gs://basenji_barnyard/hg38.ml.fa.gz ./ && gunzip hg38.ml.fa.gz
-```
-
-- download the .bed file with sequence intervals (contains chromosome name, start, end, split, which then allow you to retrieve from the fasta file)  
-```
-gsutil -u hai-gcp-hippo cp gs://basenji_barnyard/data/human/sequences.bed ./human-sequences.bed
+mkdir -p data/hg38/
+curl https://storage.googleapis.com/basenji_barnyard2/hg38.ml.fa.gz > data/hg38/hg38.ml.fa.gz
+curl https://storage.googleapis.com/basenji_barnyard2/sequences_human.bed > data/hg38/human-sequences.bed
 ```
 
 launch pretraining run  
