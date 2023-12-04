@@ -5,7 +5,7 @@ scikit-learn
 matplotlib
 tqdm
 rich
-pytorch-lightning==1.8.6
+pytorch-lightning==2.1.2
 hydra-core
 omegaconf
 wandb
