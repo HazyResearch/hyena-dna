@@ -281,6 +281,7 @@ class ThousandGP(SequenceDataset):
             fixed_length=self.max_length,
             batch_size=self.batch_size,
             max_memory_gb=self.max_memory_gb,
+            batch_dims=['sample', 'ploid'],
             shuffle=shuffle,
             transform=self.transform,
             return_tuples=[self.name, "target"],
