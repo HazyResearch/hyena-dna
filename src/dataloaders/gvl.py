@@ -3,10 +3,12 @@ from typing import Dict, Hashable, List, Union
 
 import genvarloader as gvl
 import numpy as np
+import polars as pl
 from attrs import define
-from genvarloader.util import read_bedlike
+from genvarloader.util import random_chain, read_bedlike
 from more_itertools import interleave_longest
 from numpy.typing import NDArray
+from tqdm.auto import tqdm
 
 from src.dataloaders.base import SequenceDataset
 
@@ -78,7 +80,10 @@ class Fasta(SequenceDataset):
 
         self.bed = read_bedlike(bed)
         if "name" not in self.bed:
-            raise RuntimeError("Need name column to use for identifying splits.")
+            splits = ['train'] * int(len(self.bed) * .8) + ['valid'] * int(len(self.bed) * .1)
+            splits.extend(['test'] * (len(self.bed) - len(splits)))
+            self.bed = self.bed.with_columns(name=pl.lit(splits))
+            # raise RuntimeError("Need name column to use for identifying splits.")
         self.bed = self.bed.rename({"name": "split"})
         self.setup()
 
@@ -164,7 +169,8 @@ class MultiFasta(SequenceDataset):
         self.max_memory_gb = max_memory_gb
 
         self.fastas: List[Fasta] = []
-        for folder in Path(fasta_dir).iterdir():
+        folders = list(Path(fasta_dir).iterdir())[:10]
+        for folder in tqdm(folders, desc="Initializing fastas"):
             self.fastas.append(
                 Fasta(
                     folder / "ref.fa",
@@ -175,10 +181,8 @@ class MultiFasta(SequenceDataset):
                 )
             )
 
-        self.setup()
-
     def setup(self):
-        for fasta in self.fastas:
+        for fasta in tqdm(self.fastas, desc='Setting up fastas'):
             fasta.setup()
 
     def init_datasets(self):
@@ -208,13 +212,13 @@ class MultiFasta(SequenceDataset):
         self.init_datasets()
 
     def train_dataloader(self, **kwargs):
-        return interleave_longest(fasta.train_dataloader() for fasta in self.fastas)
+        return random_chain(*(fasta.train_dataloader() for fasta in self.fastas))
 
     def val_dataloader(self, **kwargs):
-        return interleave_longest(fasta.val_dataloader() for fasta in self.fastas)
+        return interleave_longest(*(fasta.val_dataloader() for fasta in self.fastas))
 
     def test_dataloader(self, **kwargs):
-        return interleave_longest(fasta.test_dataloader() for fasta in self.fastas)
+        return interleave_longest(*(fasta.test_dataloader() for fasta in self.fastas))
 
 
 class ThousandGP(SequenceDataset):
@@ -341,8 +345,6 @@ class ThousandGP_MultiFasta(SequenceDataset):
         )
         self.multifasta = MultiFasta(fasta_dir, max_length, batch_size, max_memory_gb)
 
-        self.setup()
-
     def setup(self):
         self.thousandgp.setup()
         self.multifasta.setup()
@@ -374,7 +376,7 @@ class ThousandGP_MultiFasta(SequenceDataset):
         self.init_datasets()
 
     def train_dataloader(self, **kwargs):
-        return interleave_longest(
+        return random_chain(
             self.thousandgp.train_dataloader(), self.multifasta.train_dataloader()
         )
 
