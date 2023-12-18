@@ -173,6 +173,7 @@ class MultiFasta(SequenceDataset):
         self.max_memory_gb = max_memory_gb
 
         self.fastas: List[Fasta] = []
+        # TODO see if this can be faster
         folders = list(Path(fasta_dir).iterdir())[:10]
         for folder in tqdm(folders, desc="Initializing fastas"):
             self.fastas.append(
