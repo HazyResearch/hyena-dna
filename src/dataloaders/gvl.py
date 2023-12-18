@@ -52,6 +52,15 @@ class Tokenize:
         return batch
 
 
+NAME = 'seq'
+TOKENIZER = Tokenize(
+    name=NAME,
+    tokenize_table={b"A": 7, b"C": 8, b"G": 9, b"T": 10, b"N": 11},
+    add_eos=True,
+    eos_id=1,
+)
+
+
 class Fasta(SequenceDataset):
     _name_ = "fasta"
 
@@ -66,17 +75,12 @@ class Fasta(SequenceDataset):
         **kwargs,
     ):
         self.fasta = gvl.Fasta("seq", fasta, "N", "dna", in_memory=True)
-        self.name = "seq"
+        self.name = NAME
 
         self._max_length = max_length
         self._batch_size = batch_size
         self.max_memory_gb = max_memory_gb
-        self.transform = Tokenize(
-            name=self.name,
-            tokenize_table={b"A": 7, b"C": 8, b"G": 9, b"T": 10, b"N": 11},
-            add_eos=True,
-            eos_id=1,
-        )
+        self.transform = TOKENIZER
 
         self.bed = read_bedlike(bed)
         if "name" not in self.bed:
@@ -235,7 +239,7 @@ class ThousandGP(SequenceDataset):
         *args,
         **kwargs,
     ):
-        self.name = "seq"
+        self.name = NAME
         self.ref = gvl.Fasta("_", ref, "N", "dna")
         self.pgen = gvl.Pgen(pgen)
         self.varseq = gvl.FastaVariants(self.name, self.ref, self.pgen)
@@ -244,12 +248,7 @@ class ThousandGP(SequenceDataset):
         self._max_length = max_length
         self._batch_size = batch_size
         self.max_memory_gb = max_memory_gb
-        self.transform = Tokenize(
-            name=self.name,
-            tokenize_table={b"A": 7, b"C": 8, b"G": 9, b"T": 10, b"N": 11},
-            add_eos=True,
-            eos_id=1,
-        )
+        self.transform = TOKENIZER
 
         self.setup()
 
@@ -334,7 +333,7 @@ class ThousandGP_MultiFasta(SequenceDataset):
         *args,
         **kwargs,
     ):
-        self.name = "seq"
+        self.name = NAME
 
         self._max_length = max_length
         self._batch_size = batch_size
