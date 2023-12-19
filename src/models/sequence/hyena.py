@@ -1,5 +1,7 @@
 import math
 import sys
+import os
+from traceback import print_exc
 
 from re import U
 import torch
@@ -190,9 +192,16 @@ class HyenaFilter(OptimModule):
         auto_assign_attrs(
             self, d_model=d_model, emb_dim=emb_dim, seq_len=seq_len, modulate=modulate
         )
-        self.use_bias = bias
+        if "FLASHFFTCONV_DISABLE" in os.environ and os.environ["FLASHFFTCONV_DISABLE"]:
+            self.use_bias = True
+        else:
+            self.use_bias = False
+        #self.use_bias = bias
         self.fused_fft_conv = fused_fft_conv
-        self.bias = nn.Parameter(torch.randn(self.d_model))
+        if self.use_bias:
+            self.bias = nn.Parameter(torch.randn(self.d_model))
+        else:
+            self.bias = torch.zeros(self.d_model)
         self.dropout = nn.Dropout(dropout)
         self.bidirectional = bidirectional
 
@@ -247,7 +256,11 @@ class HyenaFilter(OptimModule):
             bias = self.bias
         bias = bias if self.use_bias else 0 * bias
 
-        if self.fused_fft_conv:
+        if hasattr(self, "flashfftconv"):
+            x = x.contiguous()
+            y = self.flashfftconv(x, k.transpose(-1, -2).squeeze(0).contiguous()).to(dtype=x.dtype)
+            return y
+        elif self.fused_fft_conv:
             bias = bias.to(dtype=torch.float32)
             y = fftconv_func(
                 x,
@@ -355,7 +368,7 @@ class HyenaOperator(nn.Module):
             raise ImportError("fused_dense is not installed")
         linear_cls = nn.Linear if not fused_bias_fc else FusedDense
         self.out_proj = linear_cls(self.d_model * inner_factor, self.d_model)
-        self.in_proj = linear_cls(self.d_model, (self.order + 1) * self.d_model)
+        self.in_proj = linear_cls(self.d_model, (self.order + 1) * self.d_model, bias=False)
         if self.post_order_ffn:
             self.ord_proj_w = nn.Parameter(
                 torch.randn(self.order, self.num_heads, self.num_heads)
@@ -375,6 +388,28 @@ class HyenaOperator(nn.Module):
             padding=self.short_filter_order - 1,
         )
 
+        try:
+            from flashfftconv import FlashDepthWiseConv1d
+            if "FLASHFFTCONV_DISABLE" in os.environ and os.environ["FLASHFFTCONV_DISABLE"]:
+                raise Exception
+            assert self.short_filter_order == 3, NotImplementedError("Not sure how to handle order != 3 yet.")
+            # TODO: FlashDepthWiseConv1d appears to violate causality.
+            '''
+            self.short_filter = FlashDepthWiseConv1d(
+                total_width,
+                3,
+                padding=1,
+                weights=self.short_filter.weight,
+                bias=self.short_filter.bias,
+                dtype=torch.float16,
+            )
+            '''
+            self.flashfftconv_enabled = True
+        except Exception:
+            print_exc()
+            self.flashfftconv_enabled = False
+            #assert False, NotImplementedError("Flash FFT Conv initialization failed. Crashing intentionally for debugging purposes!")
+
         filter_cls = instantiate(registry.layer, filter_cls, partial=True)
 
         self.filter_fn = filter_cls(
@@ -385,6 +420,7 @@ class HyenaOperator(nn.Module):
             dropout=self.filter_dropout,
             **filter_args,
         )
+
         if self.jit_filter:
             self.filter_fn = torch.jit.script(self.filter_fn, self.L)
 
@@ -395,8 +431,24 @@ class HyenaOperator(nn.Module):
     def forward(self, u, *args, **kwargs):
         l = u.size(-2)
         l_filter = min(l, self.l_max)
+
+        if self.flashfftconv_enabled:
+            u = u.transpose(-1, -2)
+            u = self.in_proj.weight @ u
+            
+            uc = self.short_filter(u)[..., :l]
+            x1, x2, v = uc.split(self.d_model, dim=1)
+            k = self.filter_fn.filter(l_filter)
+
+            x1v = self.dropout(x1 * v).contiguous()
+            y = self.flashfftconv(x1v, k.transpose(-1, -2).squeeze(0).contiguous())
+            y = y * x2
+            y = y.transpose(-1, -2)
+            y = self.out_proj(y)
+            return y
+
         u = self.in_proj(u)
-        u = rearrange(u, "b l d -> b d l")
+        u = rearrange(u, "b l d -> b d l").contiguous()
 
         uc = self.short_filter(u)[..., :l_filter]
 

@@ -1,6 +1,8 @@
 import copy
 import math
 import re
+import os
+from traceback import print_exc
 from functools import partial
 
 from collections import namedtuple, OrderedDict
@@ -34,6 +36,9 @@ except ImportError:
 
 from src.utils import instantiate
 import src.utils.registry as registry
+
+def next_power_of_2(x):
+    return 1 if x == 0 else 2**(x - 1).bit_length()
 
 
 class CheckpointedModule(torch.nn.Module):
@@ -329,6 +334,22 @@ class LMBackbone(nn.Module):
                 for i in range(n_layer)
             ]
         )
+
+        try:
+            from flashfftconv import FlashFFTConv
+            if "FLASHFFTCONV_DISABLE" in os.environ and os.environ["FLASHFFTCONV_DISABLE"]:
+                raise Exception
+            # Chesterton's multiplication by two
+            # I'm not sure why the times 2 is needed.
+            # Not multiplying by two is faster and has the same loss score.
+            seqlen = next_power_of_2(layer["l_max"])# * 2
+            self.flashfftconv = FlashFFTConv(seqlen, dtype=torch.bfloat16)
+
+            for layer in self.layers:
+                layer.mixer.flashfftconv = self.flashfftconv
+        except Exception:
+            print_exc()
+            pass
 
         self.drop_f = nn.Dropout(resid_dropout)
         self.ln_f = nn.LayerNorm(d_model, eps=layer_norm_epsilon, **factory_kwargs)
