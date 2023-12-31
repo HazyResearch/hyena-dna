@@ -390,25 +390,19 @@ class HyenaOperator(nn.Module):
 
         try:
             from flashfftconv import FlashDepthWiseConv1d
-            if "FLASHFFTCONV_DISABLE" in os.environ and os.environ["FLASHFFTCONV_DISABLE"]:
-                raise Exception
-            assert self.short_filter_order == 3, NotImplementedError("Not sure how to handle order != 3 yet.")
             # TODO: FlashDepthWiseConv1d appears to violate causality.
             '''
             self.short_filter = FlashDepthWiseConv1d(
                 total_width,
-                3,
-                padding=1,
+                self.short_filter_order,
+                padding=self.short_filter_order - 1,
                 weights=self.short_filter.weight,
                 bias=self.short_filter.bias,
                 dtype=torch.float16,
             )
             '''
-            self.flashfftconv_enabled = True
         except Exception:
             print_exc()
-            self.flashfftconv_enabled = False
-            #assert False, NotImplementedError("Flash FFT Conv initialization failed. Crashing intentionally for debugging purposes!")
 
         filter_cls = instantiate(registry.layer, filter_cls, partial=True)
 
@@ -432,11 +426,11 @@ class HyenaOperator(nn.Module):
         l = u.size(-2)
         l_filter = min(l, self.l_max)
 
-        if self.flashfftconv_enabled:
+        if hasattr(self, "flashfftconv"):
             u = u.transpose(-1, -2)
             u = self.in_proj.weight @ u
-            
-            uc = self.short_filter(u)[..., :l]
+            uc = self.short_filter(u)
+            uc = uc[..., :l]
             x1, x2, v = uc.split(self.d_model, dim=1)
             k = self.filter_fn.filter(l_filter)
 

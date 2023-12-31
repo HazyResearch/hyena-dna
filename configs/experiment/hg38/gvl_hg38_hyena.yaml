@@ -17,6 +17,7 @@ model:
   checkpoint_mlp: False  # set true for memory reduction
   residual_in_fp32: True
   pad_vocab_size_multiple: 8
+  use_flashfftconv: True
   layer:
     _name_: hyena
     emb_dim: 5
