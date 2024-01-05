@@ -54,20 +54,20 @@ class Tokenize:
 
 
 class Compose:
-    mode: Literal['random', 'interleave']
-    
-    def __init__(self, iterables, mode: Literal['random', 'interleave']):
+    mode: Literal["random", "interleave"]
+
+    def __init__(self, iterables, mode: Literal["random", "interleave"]):
         self.iterables = iterables
         self.mode = mode
-    
+
     def __iter__(self):
-        if self.mode == 'random':
+        if self.mode == "random":
             return iter(random_chain(*self.iterables))
-        elif self.mode == 'interleave':
+        elif self.mode == "interleave":
             return iter(interleave_longest(*self.iterables))
         else:
             assert_never(self.mode)
-    
+
     def __len__(self):
         return sum(len(it) for it in self.iterables)
 
@@ -152,7 +152,7 @@ class Fasta(SequenceDataset):
             shuffle = False
         else:
             raise ValueError(f"Invalid split: {split}")
-        
+
         gvloader = gvl.GVL(
             self.fasta,
             bed=bed,
@@ -241,13 +241,19 @@ class MultiFasta(SequenceDataset):
         self.init_datasets()
 
     def train_dataloader(self, **kwargs):
-        return Compose(tuple(fasta.train_dataloader() for fasta in self.fastas), mode='random')
+        return Compose(
+            tuple(fasta.train_dataloader() for fasta in self.fastas), mode="random"
+        )
 
     def val_dataloader(self, **kwargs):
-        return Compose(tuple(fasta.val_dataloader() for fasta in self.fastas), mode='interleave')
+        return Compose(
+            tuple(fasta.val_dataloader() for fasta in self.fastas), mode="interleave"
+        )
 
     def test_dataloader(self, **kwargs):
-        return Compose(tuple(fasta.test_dataloader() for fasta in self.fastas), mode='interleave')
+        return Compose(
+            tuple(fasta.test_dataloader() for fasta in self.fastas), mode="interleave"
+        )
 
 
 class ThousandGP(SequenceDataset):
