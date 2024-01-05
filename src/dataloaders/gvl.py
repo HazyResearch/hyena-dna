@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Hashable, List, Literal, Union
+from typing import Dict, Hashable, Literal, Union
 
 import genvarloader as gvl
 import numpy as np
@@ -185,7 +185,7 @@ class MultiFasta(SequenceDataset):
 
     def __init__(
         self,
-        fasta_dir: Union[str, Path],
+        files: Union[str, Path, pl.DataFrame],
         max_length: int,
         batch_size: int,
         max_memory_gb: float,
@@ -196,19 +196,24 @@ class MultiFasta(SequenceDataset):
         self._batch_size = batch_size
         self.max_memory_gb = max_memory_gb
 
+        if not isinstance(files, pl.DataFrame):
+            files = Path(files)
+            separator = ',' if files.suffix == '.csv' else '\t'
+            files = pl.read_csv(files, separator=separator)
+        
         # TODO: remove me after done testing
-        folders = list(Path(fasta_dir).iterdir())[:5]
-        self.fastas: List[Fasta] = []
-        for folder in tqdm(folders, desc="Initializing fastas"):
-            self.fastas.append(
-                Fasta(
-                    folder / "ref.fa.gz",
-                    folder / "regions.bed",
-                    self.max_length,
-                    self.batch_size,
-                    self.max_memory_gb,
-                )
+        files = files.slice(0, 5)
+        
+        self.fastas = [
+            Fasta(
+                fasta,
+                bed,
+                self.max_length,
+                self.batch_size,
+                self.max_memory_gb,
             )
+            for fasta, bed in tqdm(files.iter_rows(), desc='Initializing fastas')
+        ]
 
     def setup(self):
         for fasta in tqdm(self.fastas, desc="Setting up fastas"):
