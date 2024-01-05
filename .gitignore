@@ -5,6 +5,7 @@ data.tar.gz
 */.ipynb_checkpoints/*
 *.lprof
 .vscode
+.checkpoints/
 
 .DS_Store
 .idea/
