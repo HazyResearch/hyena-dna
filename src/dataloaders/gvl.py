@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Hashable, List, Union
+from typing import Dict, Hashable, List, Literal, Union
 
 import genvarloader as gvl
 import numpy as np
@@ -9,6 +9,7 @@ from genvarloader.util import random_chain, read_bedlike
 from more_itertools import interleave_longest
 from numpy.typing import NDArray
 from tqdm.auto import tqdm
+from typing_extensions import assert_never
 
 from src.dataloaders.base import SequenceDataset
 
@@ -52,7 +53,26 @@ class Tokenize:
         return batch
 
 
-NAME = 'seq'
+class Compose:
+    mode: Literal['random', 'interleave']
+    
+    def __init__(self, iterables, mode: Literal['random', 'interleave']):
+        self.iterables = iterables
+        self.mode = mode
+    
+    def __iter__(self):
+        if self.mode == 'random':
+            return iter(random_chain(*self.iterables))
+        elif self.mode == 'interleave':
+            return iter(interleave_longest(*self.iterables))
+        else:
+            assert_never(self.mode)
+    
+    def __len__(self):
+        return sum(len(it) for it in self.iterables)
+
+
+NAME = "seq"
 TOKENIZER = Tokenize(
     name=NAME,
     tokenize_table={b"A": 7, b"C": 8, b"G": 9, b"T": 10, b"N": 11},
@@ -74,7 +94,7 @@ class Fasta(SequenceDataset):
         *args,
         **kwargs,
     ):
-        self.fasta = gvl.Fasta("seq", fasta, "N", "dna", in_memory=True)
+        self.fasta = gvl.Fasta("seq", fasta, "N", "dna")
         self.name = NAME
 
         self._max_length = max_length
@@ -84,8 +104,11 @@ class Fasta(SequenceDataset):
 
         self.bed = read_bedlike(bed)
         if "name" not in self.bed:
-            splits = ['train'] * int(len(self.bed) * .8) + ['valid'] * int(len(self.bed) * .1)
-            splits.extend(['test'] * (len(self.bed) - len(splits)))
+            # TODO: remove me and uncomment error after done testing
+            splits = ["train"] * int(len(self.bed) * 0.8) + ["valid"] * int(
+                len(self.bed) * 0.1
+            )
+            splits.extend(["test"] * (len(self.bed) - len(splits)))
             self.bed = self.bed.with_columns(name=pl.lit(splits))
             # raise RuntimeError("Need name column to use for identifying splits.")
         self.bed = self.bed.rename({"name": "split"})
@@ -129,8 +152,8 @@ class Fasta(SequenceDataset):
             shuffle = False
         else:
             raise ValueError(f"Invalid split: {split}")
-
-        return gvl.GVL(
+        
+        gvloader = gvl.GVL(
             self.fasta,
             bed=bed,
             fixed_length=self.max_length,
@@ -140,6 +163,7 @@ class Fasta(SequenceDataset):
             transform=self.transform,
             return_tuples=[self.name, "target"],
         )
+        return gvloader
 
     def init_datasets(self):
         self.train_dataset = self._gvl("fit").torch_dataset()
@@ -157,8 +181,8 @@ class Fasta(SequenceDataset):
 
 
 class MultiFasta(SequenceDataset):
-    _name_ = 'multifasta'
-    
+    _name_ = "multifasta"
+
     def __init__(
         self,
         fasta_dir: Union[str, Path],
@@ -172,13 +196,13 @@ class MultiFasta(SequenceDataset):
         self._batch_size = batch_size
         self.max_memory_gb = max_memory_gb
 
+        # TODO: remove me after done testing
+        folders = list(Path(fasta_dir).iterdir())[:5]
         self.fastas: List[Fasta] = []
-        # TODO see if this can be faster
-        folders = list(Path(fasta_dir).iterdir())[:10]
         for folder in tqdm(folders, desc="Initializing fastas"):
             self.fastas.append(
                 Fasta(
-                    folder / "ref.fa",
+                    folder / "ref.fa.gz",
                     folder / "regions.bed",
                     self.max_length,
                     self.batch_size,
@@ -187,7 +211,7 @@ class MultiFasta(SequenceDataset):
             )
 
     def setup(self):
-        for fasta in tqdm(self.fastas, desc='Setting up fastas'):
+        for fasta in tqdm(self.fastas, desc="Setting up fastas"):
             fasta.setup()
 
     def init_datasets(self):
@@ -217,13 +241,13 @@ class MultiFasta(SequenceDataset):
         self.init_datasets()
 
     def train_dataloader(self, **kwargs):
-        return random_chain(*(fasta.train_dataloader() for fasta in self.fastas))
+        return Compose(tuple(fasta.train_dataloader() for fasta in self.fastas), mode='random')
 
     def val_dataloader(self, **kwargs):
-        return interleave_longest(*(fasta.val_dataloader() for fasta in self.fastas))
+        return Compose(tuple(fasta.val_dataloader() for fasta in self.fastas), mode='interleave')
 
     def test_dataloader(self, **kwargs):
-        return interleave_longest(*(fasta.test_dataloader() for fasta in self.fastas))
+        return Compose(tuple(fasta.test_dataloader() for fasta in self.fastas), mode='interleave')
 
 
 class ThousandGP(SequenceDataset):
@@ -285,7 +309,7 @@ class ThousandGP(SequenceDataset):
             fixed_length=self.max_length,
             batch_size=self.batch_size,
             max_memory_gb=self.max_memory_gb,
-            batch_dims=['sample', 'ploid'],
+            batch_dims=["sample", "ploid"],
             shuffle=shuffle,
             transform=self.transform,
             return_tuples=[self.name, "target"],
