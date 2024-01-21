@@ -1,5 +1,7 @@
+from copy import copy
+from itertools import chain
 from pathlib import Path
-from typing import Dict, Hashable, Literal, Union
+from typing import Dict, Hashable, Iterator, List, Literal, Optional, Tuple, Union
 
 import genvarloader as gvl
 import numpy as np
@@ -8,6 +10,7 @@ from attrs import define
 from genvarloader.util import random_chain, read_bedlike
 from more_itertools import interleave_longest
 from numpy.typing import NDArray
+from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from typing_extensions import assert_never
 
@@ -21,9 +24,9 @@ def _tokenize(
     eos_id: int,
     dtype=np.int32,
 ):
-    LENGTH_AXIS = seq.ndim - 1
+    length_axis = seq.ndim - 1
     if add_eos:
-        shape = seq.shape[:LENGTH_AXIS] + (seq.shape[LENGTH_AXIS] + 1,)
+        shape = seq.shape[:length_axis] + (seq.shape[length_axis] + 1,)
         tokenized = np.empty(shape, dtype=dtype)
         for nuc, id in tokenize_table.items():
             tokenized[..., :-1][seq == nuc] = id
@@ -56,20 +59,20 @@ class Tokenize:
 class Compose:
     mode: Literal["random", "interleave"]
 
-    def __init__(self, iterables, mode: Literal["random", "interleave"]):
-        self.iterables = iterables
+    def __init__(self, *dataloaders: DataLoader, mode: Literal["random", "interleave"]):
+        self.dataloader = dataloaders
         self.mode = mode
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[DataLoader]:
         if self.mode == "random":
-            return iter(random_chain(*self.iterables))
+            return iter(random_chain(*self.dataloader))
         elif self.mode == "interleave":
-            return iter(interleave_longest(*self.iterables))
+            return iter(interleave_longest(*self.dataloader))
         else:
             assert_never(self.mode)
 
     def __len__(self):
-        return sum(len(it) for it in self.iterables)
+        return sum(len(it) for it in self.dataloader)
 
 
 NAME = "seq"
@@ -103,6 +106,7 @@ class Fasta(SequenceDataset):
         self.transform = TOKENIZER
 
         self.bed = read_bedlike(bed)
+        self._sample_bed = self.bed.height
         if "name" not in self.bed:
             # TODO: remove me and uncomment error after done testing
             splits = ["train"] * int(len(self.bed) * 0.8) + ["valid"] * int(
@@ -140,6 +144,11 @@ class Fasta(SequenceDataset):
         self._batch_size = value
         self.init_datasets()
 
+    def set(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        self.setup()
+
     def _gvl(self, split: str):
         if split == "fit":
             bed = self.train_bed
@@ -155,7 +164,7 @@ class Fasta(SequenceDataset):
 
         gvloader = gvl.GVL(
             self.fasta,
-            bed=bed,
+            bed=bed.sample(self._sample_bed),
             fixed_length=self.max_length,
             batch_size=self.batch_size,
             max_memory_gb=self.max_memory_gb,
@@ -189,6 +198,7 @@ class MultiFasta(SequenceDataset):
         max_length: int,
         batch_size: int,
         max_memory_gb: float,
+        seqlen_warmup: Optional[List[Tuple[int, int]]] = None,
         *args,
         **kwargs,
     ):
@@ -198,12 +208,12 @@ class MultiFasta(SequenceDataset):
 
         if not isinstance(files, pl.DataFrame):
             files = Path(files)
-            separator = ',' if files.suffix == '.csv' else '\t'
+            separator = "," if files.suffix == ".csv" else "\t"
             files = pl.read_csv(files, separator=separator)
-        
+
         # TODO: remove me after done testing
         files = files.slice(0, 5)
-        
+
         self.fastas = [
             Fasta(
                 fasta,
@@ -212,8 +222,23 @@ class MultiFasta(SequenceDataset):
                 self.batch_size,
                 self.max_memory_gb,
             )
-            for fasta, bed in tqdm(files.iter_rows(), desc='Initializing fastas')
+            for fasta, bed in tqdm(files.iter_rows(), desc="Initializing fastas")
         ]
+
+        self.warmup_fastas: List[Fasta] = []
+        if seqlen_warmup is not None:
+            n = max_length * batch_size
+            # mamba used ~6.6 Gb per selqen, doubling seqlen each time
+            for seqlen, tokens in seqlen_warmup:
+                b = n // seqlen
+                n_regions = np.array([f.bed.height for f in self.fastas])
+                frac_bed = tokens / (n_regions * seqlen).sum()
+                sizes = (frac_bed * n_regions).astype(int)
+                for f, size in zip(self.fastas, sizes):
+                    # checked that shallow copy doesn't share integer attributes
+                    _f = copy(f)
+                    _f.set(max_length=seqlen, batch_size=b, sample_bed=size)
+                    self.warmup_fastas.append(_f)
 
     def setup(self):
         for fasta in tqdm(self.fastas, desc="Setting up fastas"):
@@ -246,18 +271,21 @@ class MultiFasta(SequenceDataset):
         self.init_datasets()
 
     def train_dataloader(self, **kwargs):
-        return Compose(
-            tuple(fasta.train_dataloader() for fasta in self.fastas), mode="random"
+        return chain(
+            *(f.train_dataloader() for f in self.warmup_fastas),
+            Compose(
+                *(fasta.train_dataloader() for fasta in self.fastas), mode="random"
+            ),
         )
 
     def val_dataloader(self, **kwargs):
         return Compose(
-            tuple(fasta.val_dataloader() for fasta in self.fastas), mode="interleave"
+            *(fasta.val_dataloader() for fasta in self.fastas), mode="interleave"
         )
 
     def test_dataloader(self, **kwargs):
         return Compose(
-            tuple(fasta.test_dataloader() for fasta in self.fastas), mode="interleave"
+            *(fasta.test_dataloader() for fasta in self.fastas), mode="interleave"
         )
 
 
