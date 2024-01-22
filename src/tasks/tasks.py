@@ -231,6 +231,31 @@ class LMTask(BaseTask):
         return x, y, w
 
 
+class MambaLMTask(BaseTask):
+    def forward(self, batch, encoder, model, decoder, _state):
+        """Passes a batch through the encoder, backbone, and decoder"""
+        # z holds arguments such as sequence length
+        x, y, *z = batch  # z holds extra dataloader info such as resolution
+        if len(z) == 0:
+            z = {}
+        else:
+            assert len(z) == 1 and isinstance(
+                z[0], dict
+            ), "Dataloader must return dictionary of extra arguments"
+            z = z[0]
+        x, w = encoder(
+            x, **z
+        )  # w can model-specific constructions such as key_padding_mask for transformers or state for RNNs
+        x = model(x, **w)
+        x, w = decoder(x, **z)
+
+        x = x.logits
+        x = rearrange(x, "... C -> (...) C")
+        y = rearrange(y, "... -> (...)")
+
+        return x, y, w
+
+
 class MultiClass(BaseTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -474,6 +499,7 @@ registry = {
     "base": BaseTask,
     "multiclass": MultiClass,
     "lm": LMTask,
+    "lm_mamba": MambaLMTask,
     "hg38": HG38Task,
     "masked_multiclass": MaskedMultiClass,
 }

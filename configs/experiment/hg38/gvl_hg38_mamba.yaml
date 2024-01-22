@@ -4,38 +4,24 @@ defaults:
   - override /scheduler: cosine_warmup_timm
 
 model:
-  _name_: lm
-  d_model: 128
-  n_layer: 6
-  d_inner: ${eval:4 * ${.d_model}}
-  vocab_size: 12
-  resid_dropout: 0.0
-  embed_dropout: 0.1
-  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
-  fused_dropout_add_ln: False
-  checkpoint_mixer: False  # set true for memory reduction
-  checkpoint_mlp: False  # set true for memory reduction
-  residual_in_fp32: True
-  pad_vocab_size_multiple: 8
-  use_flashfftconv: True
-  layer:
-    _name_: hyena
-    emb_dim: 5
-    filter_order: 64
-    short_filter_order: 3
-    l_max: ${eval:${dataset.max_length}+2}
-    modulate: True
-    w: 10
-    lr: ${optimizer.lr}
-    wd: 0.0
-    lr_pos_emb: 0.0
-    local_order: 3
+  _name_: lm_mamba
+  #class: mamba_ssm.models.mixer_seq_simple.MambaLMHeadModel
+  config:
+    d_model: 128
+    n_layer: 12
+    vocab_size: 12
+    rms_norm: True
+    residual_in_fp32: True
+    fused_add_norm: True
+    pad_vocab_size_multiple: 8
+    ssm_cfg: {}
 
 task:
-  _name_: lm
+  _name_: lm_mamba
 
 trainer:
   accelerator: gpu
+  devices: 8
   num_nodes: 1
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
   max_epochs: 1000
@@ -46,7 +32,7 @@ trainer:
 
 dataset:
   _name_: fasta
-  batch_size: 2
+  batch_size: 4
   max_length: 65536
   fasta: /cellar/users/dlaub/projects/HyenaDNA_collab/data/human/hg38.ml.fa
   bed: /cellar/users/dlaub/projects/HyenaDNA_collab/data/human/sequences.bed
@@ -62,10 +48,13 @@ scheduler:
   lr_min: ${eval:0.1 * ${optimizer.lr}}
 
 optimizer:
-  lr: 6e-4
-  weight_decay: 0.1
+  lr: 8e-3
+  weight_decay: 0.1 
+  betas:
+    - 0.9
+    - 0.95
 
 train:
   gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
   seed: 2222
-  global_batch_size: ${dataset.batch_size}
+  global_batch_size: 256
