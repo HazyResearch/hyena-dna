@@ -6,6 +6,7 @@ data.tar.gz
 *.lprof
 .vscode
 .checkpoints/
+*.svg
 
 .DS_Store
 .idea/

@@ -1,2 +1,2 @@
-from . import et, genomics, gvl
+from . import et, genomics, gvl, multifasta
 from .base import SequenceDataset

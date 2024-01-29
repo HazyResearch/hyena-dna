@@ -106,16 +106,10 @@ class Fasta(SequenceDataset):
         self.transform = TOKENIZER
 
         self.bed = read_bedlike(bed)
-        self._sample_bed = self.bed.height
         if "name" not in self.bed:
-            # TODO: remove me and uncomment error after done testing
-            splits = ["train"] * int(len(self.bed) * 0.8) + ["valid"] * int(
-                len(self.bed) * 0.1
-            )
-            splits.extend(["test"] * (len(self.bed) - len(splits)))
-            self.bed = self.bed.with_columns(name=pl.lit(splits))
-            # raise RuntimeError("Need name column to use for identifying splits.")
+            raise RuntimeError("Need name column to use for identifying splits.")
         self.bed = self.bed.rename({"name": "split"})
+        self._sample_bed = None
         self.setup()
 
     def setup(self):
@@ -151,7 +145,10 @@ class Fasta(SequenceDataset):
 
     def _gvl(self, split: str):
         if split == "fit":
-            bed = self.train_bed
+            if self._sample_bed is None:
+                bed = self.train_bed
+            else:
+                bed = self.train_bed.sample(self._sample_bed)
             shuffle = True
         elif split == "val":
             bed = self.val_bed
@@ -164,7 +161,7 @@ class Fasta(SequenceDataset):
 
         gvloader = gvl.GVL(
             self.fasta,
-            bed=bed.sample(self._sample_bed),
+            bed=bed,
             fixed_length=self.max_length,
             batch_size=self.batch_size,
             max_memory_gb=self.max_memory_gb,
@@ -198,6 +195,7 @@ class MultiFasta(SequenceDataset):
         max_length: int,
         batch_size: int,
         max_memory_gb: float,
+        bed: Optional[Union[str, Path, pl.DataFrame]] = None,
         seqlen_warmup: Optional[List[Tuple[int, int]]] = None,
         *args,
         **kwargs,
@@ -210,9 +208,11 @@ class MultiFasta(SequenceDataset):
             files = Path(files)
             separator = "," if files.suffix == ".csv" else "\t"
             files = pl.read_csv(files, separator=separator)
-
-        # TODO: remove me after done testing
-        files = files.slice(0, 5)
+            
+        if bed is not None:
+            if isinstance(bed, (str, Path)):
+                bed = pl.read_ipc(bed)
+            beds = bed.partition_by("species", include_key=False)
 
         self.fastas = [
             Fasta(
@@ -222,16 +222,16 @@ class MultiFasta(SequenceDataset):
                 self.batch_size,
                 self.max_memory_gb,
             )
-            for fasta, bed in tqdm(files.iter_rows(), desc="Initializing fastas")
+            for fasta, bed in tqdm(files.iter_rows(), total=files.height, desc="Initializing fastas")
         ]
 
         self.warmup_fastas: List[Fasta] = []
         if seqlen_warmup is not None:
             n = max_length * batch_size
-            # mamba used ~6.6 Gb per selqen, doubling seqlen each time
+            # mamba used ~6 Gb per selqen, doubling seqlen each time
             for seqlen, tokens in seqlen_warmup:
                 b = n // seqlen
-                n_regions = np.array([f.bed.height for f in self.fastas])
+                n_regions = np.array([f.train_bed.height for f in self.fastas])
                 frac_bed = tokens / (n_regions * seqlen).sum()
                 sizes = (frac_bed * n_regions).astype(int)
                 for f, size in zip(self.fastas, sizes):
