@@ -1,6 +1,8 @@
 import copy
 import math
 import re
+import os
+from traceback import print_exc
 from functools import partial
 
 from collections import namedtuple, OrderedDict
@@ -34,6 +36,9 @@ except ImportError:
 
 from src.utils import instantiate
 import src.utils.registry as registry
+
+def next_power_of_2(x):
+    return 1 if x == 0 else 2**(x - 1).bit_length()
 
 
 class CheckpointedModule(torch.nn.Module):
@@ -270,6 +275,7 @@ class LMBackbone(nn.Module):
         sequence_parallel=True,
         checkpoint_mlp=False,
         checkpoint_mixer=False,
+        use_flashfftconv=False,
         device=None,
         dtype=None,
         **kwargs,
@@ -279,6 +285,7 @@ class LMBackbone(nn.Module):
         self.process_group = process_group
         self.sequence_parallel = sequence_parallel
         self.residual_in_fp32 = residual_in_fp32
+        self.use_flashfftconv = use_flashfftconv
 
         if process_group is None:
             self.embeddings = GPT2Embeddings(
@@ -329,6 +336,18 @@ class LMBackbone(nn.Module):
                 for i in range(n_layer)
             ]
         )
+
+        if self.use_flashfftconv:
+            from flashfftconv import FlashFFTConv
+            # Chesterton's multiplication by two
+            # I'm not sure why the times 2 is needed.
+            # Not multiplying by two is faster and has the same loss score.
+            # Since I don't know why its here, I'm leaving it in place.
+            seqlen = next_power_of_2(layer["l_max"]) * 2
+            self.flashfftconv = FlashFFTConv(seqlen, dtype=torch.bfloat16)
+
+            for layer in self.layers:
+                layer.mixer.flashfftconv = self.flashfftconv
 
         self.drop_f = nn.Dropout(resid_dropout)
         self.ln_f = nn.LayerNorm(d_model, eps=layer_norm_epsilon, **factory_kwargs)

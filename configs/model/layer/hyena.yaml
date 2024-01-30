@@ -14,3 +14,4 @@ post_order_ffn: false
 jit_filter: false
 short_filter_order: 3
 activation: "id"
+use_flashfftconv: true

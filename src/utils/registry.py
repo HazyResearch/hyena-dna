@@ -23,6 +23,7 @@ model = {
     "model": "src.models.sequence.SequenceModel",
     "lm": "src.models.sequence.long_conv_lm.ConvLMHeadModel",
     "lm_simple": "src.models.sequence.simple_lm.SimpleLMHeadModel",
+    "lm_mamba": "mamba_ssm.models.mixer_seq_simple.MambaLMHeadModel",
     "vit_b_16": "src.models.baselines.vit_all.vit_base_patch16_224",
     "dna_embedding": "src.models.sequence.dna_embedding.DNAEmbeddingModel",
     "bpnet": "src.models.sequence.hyena_bpnet.HyenaBPNet",
