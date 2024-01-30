@@ -45,27 +45,3 @@ train:
 
 wandb:
   null
-
-callbacks:
-  seqlen_warmup_reload:
-    # epochs refers to how long to run at that stage (not cummulative!)
-    # this is just a sample
-    stage_params:
-      - epochs: 2  # means run this stage for 2 epochs (0, and 1)
-        seq_len: 1024
-        batch_size: 256  # grad accum = 1, since train.global_batch_size=256
-      - epochs: 2  # run for 2 epochs (2 and 3)
-        seq_len: 2048
-        batch_size: 128
-      - epochs: 2  # run for epochs 4, 5
-        seq_len: 4096  #
-        batch_size: 64
-      - epochs: 2  # epoch 6, 7
-        seq_len: 8192  
-        batch_size: 32
-      - epochs: 4  #  epoch 8, 9, 10, 11
-        seq_len: 16_384  # 
-        batch_size: 16
-      - epochs: 4  # epoch 12, 13, 14, 15
-        seq_len: 32_768
-        batch_size: 8

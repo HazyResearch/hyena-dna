@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Union, cast
 
 import genvarloader as gvl
 import numpy as np
 import polars as pl
+import pytorch_lightning as lit
 from attrs import define
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, Dataset
@@ -79,25 +80,36 @@ class TorchMultiFasta(Dataset):
 class MultiFasta(SequenceDataset):
     _name_ = "multifasta_v2"
 
-    def __init__(self, file_table: Union[Path, pl.DataFrame], bed: Union[Path, pl.DataFrame], batch_size: int, num_workers: int = 1):
+    def __init__(
+        self,
+        file_table: Union[Path, pl.DataFrame],
+        bed: Union[Path, pl.DataFrame],
+        batch_size: int,
+        num_workers: int = 1,
+    ):
         if isinstance(file_table, Path):
             fastas = pl.read_csv(file_table, separator="\t")["fasta"]
         else:
             fastas = file_table["fasta"]
-        
+
         if isinstance(bed, Path):
             bed = pl.read_ipc(bed)
         self.beds = bed.partition_by("split", as_dict=True, include_key=False)
-        
+        # keep this around in case seqlen warmup used
+        self.full_train = self.beds['train']
+
         species = fastas.str.split("/").list.get(-1).str.split(".").list.get(0)
-        
+
         self.fastas = {
-            s: gvl.Fasta(NAME, f, "N", "dna") for s, f in tqdm(zip(species, fastas), desc="Init FASTAs", total=len(species))
+            s: gvl.Fasta(NAME, f, "N", "dna")
+            for s, f in tqdm(
+                zip(species, fastas), desc="Init FASTAs", total=len(species)
+            )
         }
         self.dl_kwargs = {
             "pin_memory": True,
             "batch_size": batch_size,
-            "num_workers": num_workers
+            "num_workers": num_workers,
         }
 
     def setup(self):
@@ -113,3 +125,45 @@ class MultiFasta(SequenceDataset):
 
     def test_dataloader(self, **kwargs):
         return DataLoader(self.test_ds, **self.dl_kwargs)
+    
+
+class SeqLenWarmup(lit.Callback):
+    def __init__(self, max_length: int, tokens_per_step: int, init_length: int = 1024):
+        if max_length <= init_length:
+            raise ValueError("max_length must be greater than init_length")
+        
+        self.tokens_per_step = tokens_per_step
+        
+        lengths = 2**np.arange(np.log2(init_length), np.ceil(np.log2(max_length)))
+        lengths[-1] = max_length
+        self.lengths = lengths
+        self.len_idx = 0
+        
+    def on_fit_start(self, trainer: lit.Trainer, pl_module: lit.LightningModule) -> None:
+        dm = cast(MultiFasta, trainer.datamodule)
+        self.full_train = dm.beds['train']
+        
+        dm.beds['train'] = self._with_length(self.full_train, self.lengths[self.len_idx], self.tokens_per_step)
+    
+    def on_train_epoch_end(self, trainer: lit.Trainer, pl_module: lit.LightningModule) -> None:
+        dm = cast(MultiFasta, trainer.datamodule)
+        self.len_idx += 1
+        
+        if self.len_idx == len(self.lengths):
+            dm.beds['train'] = self.full_train
+        else:
+            dm.beds['train'] = self._with_length(self.full_train, self.lengths[self.len_idx], self.tokens_per_step)
+    
+    @staticmethod
+    def _with_length(bed: pl.DataFrame, length: int, n_tokens: int):
+        midpt = (pl.col('chromEnd') + pl.col('chromStart')) / 2
+        
+        return (
+            bed
+            .filter(pl.col('chromEnd') - pl.col('chromStart') >= length)
+            .with_columns(
+                chromEnd=(midpt + length / 2).round(),
+                chromStart=(midpt - length / 2).round()
+            )
+            .sample(np.ceil(n_tokens / length), with_replacement=True)
+        )

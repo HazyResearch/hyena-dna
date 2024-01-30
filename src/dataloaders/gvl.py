@@ -90,7 +90,7 @@ class Fasta(SequenceDataset):
     def __init__(
         self,
         fasta: Union[str, Path],
-        bed: Union[str, Path],
+        bed: Union[str, Path, pl.DataFrame],
         max_length: int,
         batch_size: int,
         max_memory_gb: float,
@@ -105,7 +105,10 @@ class Fasta(SequenceDataset):
         self.max_memory_gb = max_memory_gb
         self.transform = TOKENIZER
 
-        self.bed = read_bedlike(bed)
+        if isinstance(bed, (str, Path)):
+            self.bed = read_bedlike(bed)
+        else:
+            self.bed = bed
         if "name" not in self.bed:
             raise RuntimeError("Need name column to use for identifying splits.")
         self.bed = self.bed.rename({"name": "split"})
@@ -213,17 +216,27 @@ class MultiFasta(SequenceDataset):
             if isinstance(bed, (str, Path)):
                 bed = pl.read_ipc(bed)
             beds = bed.partition_by("species", include_key=False)
-
-        self.fastas = [
-            Fasta(
-                fasta,
-                bed,
-                self.max_length,
-                self.batch_size,
-                self.max_memory_gb,
-            )
-            for fasta, bed in tqdm(files.iter_rows(), total=files.height, desc="Initializing fastas")
-        ]
+            self.fastas = [
+                Fasta(
+                    fasta,
+                    bed,
+                    self.max_length,
+                    self.batch_size,
+                    self.max_memory_gb,
+                )
+                for (fasta, _), bed in tqdm(zip(files.iter_rows(), beds), total=files.height, desc="Initializing fastas")
+            ]
+        else:
+            self.fastas = [
+                Fasta(
+                    fasta,
+                    bed,
+                    self.max_length,
+                    self.batch_size,
+                    self.max_memory_gb,
+                )
+                for fasta, bed in tqdm(files.iter_rows(), total=files.height, desc="Initializing fastas")
+            ]
 
         self.warmup_fastas: List[Fasta] = []
         if seqlen_warmup is not None:
