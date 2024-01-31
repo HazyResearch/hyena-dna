@@ -1,5 +1,4 @@
-from pathlib import Path
-from typing import Dict, Union, cast
+from typing import Dict, Optional, Tuple, Union, cast
 
 import genvarloader as gvl
 import numpy as np
@@ -45,11 +44,7 @@ class Tokenize:
         seq = _tokenize(
             batch[self.name], self.tokenize_table, self.add_eos, self.eos_id
         )
-        batch = {
-            self.name: seq[..., :-1],
-            "target": seq[..., 1:].astype(np.int64),
-        }
-        return batch
+        return seq[..., :-1], seq[..., 1:].astype(np.int64)
 
 
 NAME = "seq"
@@ -71,7 +66,7 @@ class TorchMultiFasta(Dataset):
     def __len__(self) -> int:
         return self.bed.height
 
-    def __getitem__(self, index: int) -> Dict[str, NDArray]:
+    def __getitem__(self, index: int) -> Tuple[NDArray, NDArray]:
         chrom, start, end, species = self.bed.row(index)
         batch = {NAME: np.char.upper(self.fastas[species].read(chrom, start, end))}
         return self.tokenize(batch)
@@ -82,23 +77,33 @@ class MultiFasta(SequenceDataset):
 
     def __init__(
         self,
-        file_table: Union[Path, pl.DataFrame],
-        bed: Union[Path, pl.DataFrame],
+        file_table: Union[str, pl.DataFrame],
+        bed: Union[str, pl.DataFrame],
         batch_size: int,
         num_workers: int = 1,
+        limit_fastas: Optional[int] = None,
+        *args,
+        **kwargs,
     ):
-        if isinstance(file_table, Path):
+        if isinstance(file_table, str):
             fastas = pl.read_csv(file_table, separator="\t")["fasta"]
         else:
             fastas = file_table["fasta"]
-
-        if isinstance(bed, Path):
+        
+        if isinstance(bed, str):
             bed = pl.read_ipc(bed)
+
+        if limit_fastas is not None:
+            fastas = fastas.head(limit_fastas)
+        
+        species = fastas.str.split("/").list.get(-1).str.split(".").list.get(0)
+        
+        if limit_fastas is not None:
+            bed = bed.filter(pl.col('species').is_in(species))
+            
         self.beds = bed.partition_by("split", as_dict=True, include_key=False)
         # keep this around in case seqlen warmup used
         self.full_train = self.beds['train']
-
-        species = fastas.str.split("/").list.get(-1).str.split(".").list.get(0)
 
         self.fastas = {
             s: gvl.Fasta(NAME, f, "N", "dna")
@@ -140,13 +145,13 @@ class SeqLenWarmup(lit.Callback):
         self.len_idx = 0
         
     def on_fit_start(self, trainer: lit.Trainer, pl_module: lit.LightningModule) -> None:
-        dm = cast(MultiFasta, trainer.datamodule)
+        dm = cast(MultiFasta, trainer.datamodule)  # type: ignore[reportGeneralTypeIssues]
         self.full_train = dm.beds['train']
         
         dm.beds['train'] = self._with_length(self.full_train, self.lengths[self.len_idx], self.tokens_per_step)
     
     def on_train_epoch_end(self, trainer: lit.Trainer, pl_module: lit.LightningModule) -> None:
-        dm = cast(MultiFasta, trainer.datamodule)
+        dm = cast(MultiFasta, trainer.datamodule)  # type: ignore[reportGeneralTypeIssues]
         self.len_idx += 1
         
         if self.len_idx == len(self.lengths):
