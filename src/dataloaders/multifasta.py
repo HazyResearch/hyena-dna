@@ -90,6 +90,8 @@ class MultiFasta(SequenceDataset):
         else:
             fastas = file_table["fasta"]
         
+        fastas = fastas.str.replace(r'/iblm/netapp', r'/home/jovyan', literal=True)
+        
         if isinstance(bed, str):
             bed = pl.read_ipc(bed)
 
