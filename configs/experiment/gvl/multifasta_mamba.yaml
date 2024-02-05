@@ -20,8 +20,9 @@ task:
 
 trainer:
   accelerator: gpu
-  devices: 4
+  devices: 1
   num_nodes: 1
+  # strategy: ddp
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
   max_epochs: 7
   precision: bf16  # bf16 only a100
@@ -62,4 +63,5 @@ train:
   global_batch_size: ${dataset.batch_size}
 
 wandb:
-  project: dna-lm
+  null
+  # project: dna-lm
