@@ -93,7 +93,7 @@ class ICLGenomicsDataset(torch.utils.data.Dataset):
         self.all_labels = []
         label_mapper = {}
 
-        for i, x in enumerate(base_path.iterdir()):
+        for i, x in enumerate(sorted(base_path.iterdir())):
             label_mapper[x.stem] = i
 
         for label_type in label_mapper.keys():
