@@ -20,9 +20,9 @@ task:
 
 trainer:
   accelerator: gpu
-  devices: 1
+  devices: 4
   num_nodes: 1
-  # strategy: ddp
+  strategy: ddp
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
   max_epochs: 7
   precision: bf16  # bf16 only a100
@@ -34,14 +34,18 @@ dataset:
   max_length: 65_536
   file_table: /home/jovyan/data4/shared_dir/hyena_dna_collab/training_datasets/cactus_dataset_65536.txt
   bed: /home/jovyan/data4/shared_dir/hyena_dna_collab/training_datasets/cactus_dataset_exactly_2to16_all_bed.arrow
-  num_workers: 4
-  limit_fastas: 10
+  num_workers: 1
+  # limit_fastas: 10
+  # fasta_dir: /home/jovyan/fasta_files
   __train_len: ${div_up:1_000_000_000, ${.max_length}}
 
 callbacks:
   multifasta_seqlen_warmup:
     max_length: ${dataset.max_length}
     tokens_per_step: 100_000_000
+  model_checkpoint:
+    save_top_k: -1
+    every_n_train_steps: 10000
 
 scheduler:
   t_in_epochs: False
@@ -60,8 +64,7 @@ optimizer:
 train:
   gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
   seed: 2222
-  global_batch_size: ${dataset.batch_size}
+  global_batch_size: ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}
 
 wandb:
-  null
-  # project: dna-lm
+  project: dna-lm

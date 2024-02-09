@@ -27,6 +27,9 @@ class SeqLenWarmup(lit.Callback):
         self, trainer: lit.Trainer, pl_module: lit.LightningModule
     ) -> None:
         dm = cast(MultiFasta, pl_module.dataset)  # type: ignore[reportGeneralTypeIssues]
+        trainer.limit_val_batches = 0
+        trainer.limit_test_batches = 0
+        
         if self.og_beds is None and self.max_tokens_per_batch is None:
             self.og_beds = dm.beds
             self.max_tokens_per_batch = int(dm.batch_size * self.lengths[-1])
@@ -40,11 +43,13 @@ class SeqLenWarmup(lit.Callback):
         if self.step >= len(self.lengths) - 1:
             pl_module.log("seqlen_warmup_finished", True)
             dm.beds = self.og_beds
+            trainer.limit_val_batches = 1
+            trainer.limit_test_batches = 1
         else:
             pl_module.log("seqlen_warmup_finished", False)
             dm.beds = {
-                k: self._with_length(bed, current_length, self.tokens_per_step, stage=k)
-                for k, bed in self.og_beds.items()
+                split: self._with_length(bed, current_length, self.tokens_per_step, stage=split)
+                for split, bed in self.og_beds.items()
             }
         self.step += 1
 

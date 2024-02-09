@@ -81,15 +81,38 @@ class MultiFasta(SequenceDataset):
         batch_size: int,
         num_workers: int = 1,
         limit_fastas: Optional[int] = None,
+        fasta_dir: Optional[str] = None,
         *args,
         **kwargs,
     ):
+        """Dataset of multiple FASTA files e.g. for training a model on multiple species.
+
+        Parameters
+        ----------
+        file_table : Union[str, pl.DataFrame]
+            Table with a column "fasta" containing the paths to the FASTA files.
+        bed : Union[str, pl.DataFrame]
+            Table with the columns "chrom", "chromStart", "chromEnd", "species", and "split".
+            "split" should be one of "train", "valid", or "test".
+        batch_size : int
+        num_workers : int, optional
+            by default 1
+        limit_fastas : Optional[int], optional
+            Whether to limit the number of FASTA files to use, by default None
+        fasta_dir : Optional[str], optional
+            Directory where the FASTA files are located, by default None. Will override the
+            directory in the "fasta" column of `file_table`, keeping the rest of the path.
+        """
         if isinstance(file_table, str):
             fastas = pl.read_csv(file_table, separator="\t")["fasta"]
         else:
             fastas = file_table["fasta"]
 
-        fastas = fastas.str.replace(r"/iblm/netapp", r"/home/jovyan", literal=True)
+        if fasta_dir is not None:
+            file_names = fastas.str.split("/").list.get(-1)
+            fastas = fasta_dir.rstrip('/') + '/' + file_names
+        else:
+            fastas = fastas.str.replace(r"/iblm/netapp", r"/home/jovyan", literal=True)
 
         if isinstance(bed, str):
             bed = pl.read_ipc(bed)
@@ -103,8 +126,6 @@ class MultiFasta(SequenceDataset):
             bed = bed.filter(pl.col("species").is_in(species))
 
         self.beds = bed.partition_by("split", as_dict=True, include_key=False)
-        # keep this around in case seqlen warmup used
-        self.full_train = self.beds["train"]
 
         self.fastas = {
             s: gvl.Fasta(NAME, f, "N", "dna")
