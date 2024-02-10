@@ -63,7 +63,7 @@ class Fasta(SequenceDataset):
         *args,
         **kwargs,
     ):
-        self.fasta = gvl.Fasta("seq", fasta, "N", "dna", in_memory=True)
+        self.fasta = gvl.Fasta("seq", fasta, "N", "dna")
         self.name = "seq"
 
         self._max_length = max_length

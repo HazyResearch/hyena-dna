@@ -26,6 +26,7 @@ model = {
     "lm_mamba": "mamba_ssm.models.mixer_seq_simple.MambaLMHeadModel",
     "vit_b_16": "src.models.baselines.vit_all.vit_base_patch16_224",
     "dna_embedding": "src.models.sequence.dna_embedding.DNAEmbeddingModel",
+    "emb_mamba": "src.models.sequence.dna_embedding.MambaEmbeddingModel",
     "bpnet": "src.models.sequence.hyena_bpnet.HyenaBPNet",
 }
 

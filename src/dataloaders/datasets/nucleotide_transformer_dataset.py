@@ -76,7 +76,7 @@ class NucleotideTransformerDataset(torch.utils.data.Dataset):
         assert base_path.exists(), "path to fasta file must exist"
 
         for file in base_path.iterdir():
-            if str(file).endswith(".fasta") and split in str(file):
+            if str(file).endswith(".fna") and split in str(file):
                 self.seqs = Fasta(str(file), read_long_names=True)
 
         self.label_mapper = {}
@@ -108,12 +108,12 @@ class NucleotideTransformerDataset(torch.utils.data.Dataset):
         seq_ids = torch.LongTensor(seq_ids)
 
         # convert to tensor
-        seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
+        attn_mask = torch.BoolTensor(seq["attention_mask"])
 
         # need to wrap in list
         target = torch.LongTensor([y])  # offset by 1, includes eos
 
         if self.return_mask:
-            return seq_ids, target, {"mask": torch.BoolTensor(seq["attention_mask"])}
+            return seq_ids, target, {"mask": attn_mask}
         else:
             return seq_ids, target

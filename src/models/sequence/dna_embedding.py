@@ -1,6 +1,7 @@
 from functools import partial
 import torch
 import torch.nn as nn
+from collections import namedtuple
 
 from flash_attn.utils.generation import GenerationMixin
 from flash_attn.utils.distributed import sync_shared_params
@@ -13,6 +14,26 @@ except ImportError:
 # grab all functions / modules from long_conv_lm.py
 from src.models.sequence.long_conv_lm import LMBackbone
 from src.models.sequence.long_conv_lm import _init_weights
+from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
+from mamba_ssm.models.config_mamba import MambaConfig
+
+class MambaEmbeddingModel(MambaLMHeadModel):
+    def forward(
+        self, input_ids, position_ids=None, inference_params=None, state=None,
+    ):  # state for the repo interface
+        hidden_states = self.backbone(
+            input_ids, inference_params=inference_params
+        )
+        # we only need the last hidden state for embeddings (decoder head will predict classification task)
+        EmbeddingOutput = namedtuple("EmbeddingOutput", ["hidden_state", "vestigial"])
+        return EmbeddingOutput(hidden_state=hidden_states, vestigial=None)
+
+    @property
+    def d_output(self):
+        """Model /embedding dimension, used for decoder mapping."""
+        #if getattr(self, "config", None) is None or getattr(self.config, "d_mdoel", None) is None:
+        #    raise NotImplementedError("SequenceModule instantiation must set d_output")
+        return self.config.d_model
 
 
 class DNAEmbeddingModel(nn.Module, GenerationMixin):

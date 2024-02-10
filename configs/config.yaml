@@ -56,17 +56,16 @@ tolerance: # fault tolerance for training on preemptible machines
 # Set `~wandb` or `wandb=null` or `wandb.mode=disabled` to disable logging
 # If other loggers are added, it would make sense to put this one level lower under train/ or logger/
 wandb:
-  #project: train-ref-genome-1k
-  project: mamba-dna
+  project: dna-lm
   group: ""
-  #job_type: training
+  job_type: ""
   mode: online # choices=['online', 'offline', 'disabled']
   name: null
   save_dir: "."
   id: ${.name} # pass correct id to resume experiment!
   # Below options should not need to be specified
   #entity: hyena-dna-collab  # set to name of your wandb team or just remove it
-  entity: sbs-ardapekis
+  entity: mcvicker-lab
   # log_model: False
   # prefix: ""
   # job_type: "train"
