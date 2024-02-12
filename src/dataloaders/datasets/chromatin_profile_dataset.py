@@ -5,6 +5,8 @@ import numpy as np
 from tqdm import tqdm
 import liftover
 from pathlib import Path
+import pyarrow.parquet as pq
+from pathlib import Path
 from pyfaidx import Fasta
 from random import randrange, random
 
@@ -196,14 +198,22 @@ class ChromatinProfileDataset(torch.utils.data.Dataset):
 
     def load_csv_data(self, coords_target_path):
         # Grab sequence coordinates from csv
-        self.coords = pd.read_csv(
-            coords_target_path,
-            usecols=["Chr_No", "Start", "End"],
-            dtype={"Chr_No": np.int64, "Start": np.int64, "End": np.int64},
-            engine="pyarrow",
-        ).reset_index(
-            drop=True
-        )  # Note Chr_No is zero-based
+        coords_target_path = Path(coords_target_path)
+        pq_path = coords_target_path.parent / (coords_target_path.stem + ".parquet")
+        if pq_path.exists():
+            self.coords = pq.read_table(
+                pq_path,
+                columns=["Chr_No", "Start", "End"]
+            ).to_pandas().reset_index(drop=True)
+        else:
+            self.coords = pd.read_csv(
+                coords_target_path,
+                usecols=["Chr_No", "Start", "End"],
+                dtype={"Chr_No": np.int64, "Start": np.int64, "End": np.int64},
+                engine="pyarrow",
+            ).reset_index(
+                drop=True
+            )  # Note Chr_No is zero-based
 
         # Quickly grab target column names
         with open(coords_target_path, "r") as f:
@@ -212,13 +222,20 @@ class ChromatinProfileDataset(torch.utils.data.Dataset):
             self.target_columns = [col for col in header if col[:2] == "y_"]
 
         # Grab targets from csv and convert to torch long format
-        self.targets = torch.from_numpy(
-            pd.read_csv(
+        if pq_path.exists():
+            frame = pq.read_table(
+                pq_path,
+                columns=self.target_columns,
+            ).to_pandas()
+        else:
+            frame = pd.read_csv(
                 coords_target_path,
                 usecols=self.target_columns,
                 dtype={k: bool for k in self.target_columns},
                 engine="pyarrow",
-            ).to_numpy()
+            )
+        self.targets = torch.from_numpy(
+            frame.to_numpy()
         ).long()
 
     def __len__(self):
