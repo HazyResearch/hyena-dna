@@ -41,14 +41,15 @@ trainer:
   num_nodes: 1
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
   max_epochs: 100
-  precision: bf16  # bf16 only a100
+  max_steps: 10_000 # Limiting to 10k steps for time efficiency.
+  precision: bf16  # bf16 only a100. needed for numerical tability.
   gradient_clip_val: 1.0
   # strategy: null
 
 dataset:
   # batch_size: 32  # Per GPU
   batch_size: 8
-  max_length: 65536 # 262144, 524288
+  # max_length: 65536 # 262144, 524288
   # optional, default is max_length
   # max_length_val: ${dataset.max_length}
   # max_length_test: ${dataset.max_length}

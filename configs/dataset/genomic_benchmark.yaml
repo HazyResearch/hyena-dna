@@ -1,12 +1,11 @@
 _name_: genomic_benchmark
 dataset_name: dummy_mouse_enhancers_ensembl
 dest_path: null
-max_length: 1024
+max_length: ${.${.dataset_name}.max_length}
 d_output: ${.${.dataset_name}.classes}
 use_padding: True
 padding_side: 'left'
 add_eos: False
-batch_size: 32
 train_len: ${.${.dataset_name}.train_len}
 __l_max: ${.max_length}
 shuffle: true  # set this as default!
@@ -14,27 +13,35 @@ shuffle: true  # set this as default!
 dummy_mouse_enhancers_ensembl:
   train_len: 1210
   classes: 2
+  max_length: 4096
 demo_coding_vs_intergenomic_seqs:
   train_len: 100_000
   classes: 2
+  max_length: 200
 demo_human_or_worm:
   train_len: 100_000
   classes: 2
+  max_length: 200
 human_enhancers_cohn:
   train_len: 27791
   classes: 2
+  max_length: 500
 human_enhancers_ensembl:
   train_len: 154842
   classes: 2
+  max_length: 512
 human_ensembl_regulatory:
   train_len: 289061
   classes: 3
+  max_length: 1024
 human_nontata_promoters:
   train_len: 36131
   classes: 2
+  max_length: 251
 human_ocr_ensembl:
   train_len: 174756
   classes: 2
+  max_length: 512
 
 # there are 8 datasets in this suite, choose 1 at a time, with their corresponding settings
 # name                                num_seqs        num_classes     median len    std

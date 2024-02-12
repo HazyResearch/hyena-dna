@@ -31,7 +31,7 @@ trainer:
   devices: 1
   num_nodes: 1
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
-  max_epochs: 100
+  max_epochs: 1 # limit for time efficiency
   precision: bf16  # bf16 only a100
   gradient_clip_val: 1.0
   # strategy: null
@@ -40,7 +40,7 @@ dataset:
   batch_size: 8
   max_length: 65536 # DeepSea uses 1000, BigBird uses 8000
   tokenizer_name: char
-  train_len: 2200000 # 2188805 for filtered hg38 / 2200000 for hg19
+  train_len: 2188805 # 2188805 for filtered hg38 / 2200000 for hg19
   rc_aug: false  # reverse complement augmentation
 
 scheduler:
