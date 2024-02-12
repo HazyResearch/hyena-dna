@@ -45,6 +45,7 @@ dependencies:
   - py-spy
   - rsync
   - cython
+  - pyarrow
   - pip:
     - genvarloader
     - causal-conv1d==1.1.3.post1

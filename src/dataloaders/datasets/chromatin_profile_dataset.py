@@ -200,6 +200,7 @@ class ChromatinProfileDataset(torch.utils.data.Dataset):
             coords_target_path,
             usecols=["Chr_No", "Start", "End"],
             dtype={"Chr_No": np.int64, "Start": np.int64, "End": np.int64},
+            engine="pyarrow",
         ).reset_index(
             drop=True
         )  # Note Chr_No is zero-based
@@ -216,6 +217,7 @@ class ChromatinProfileDataset(torch.utils.data.Dataset):
                 coords_target_path,
                 usecols=self.target_columns,
                 dtype={k: bool for k in self.target_columns},
+                engine="pyarrow",
             ).to_numpy()
         ).long()
 
