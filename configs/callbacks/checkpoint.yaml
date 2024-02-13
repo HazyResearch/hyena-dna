@@ -2,15 +2,17 @@ model_checkpoint:
   # _target_: pytorch_lightning.callbacks.ModelCheckpoint
   monitor: ${train.monitor} # name of the logged metric which determines when model is improving
   mode: ${train.mode} # can be "max" or "min"
-  save_top_k: 1 # save k best models (determined by above metric)
+  save_top_k: -1 # save k best models (determined by above metric)
   save_last: True # additionaly always save model from last epoch
   dirpath: "checkpoints/"
   # this saves an annoying "epoch=12" which makes it annoying to pass on the command line; epochs are being logged through the verbose flag and logger anyways
   # seems like you can override the '.format_checkpoint_name' method of ModelCheckpoint to change this, but not worth
+  filename: "step{step}"
   # filename: "{epoch:02d}",
-  filename: ${train.monitor}
+  # filename: ${train.monitor}
   auto_insert_metric_name: False
   verbose: True
+  every_n_train_steps: 10000
 
 # early_stopping:
 #   _target_: pytorch_lightning.callbacks.EarlyStopping
