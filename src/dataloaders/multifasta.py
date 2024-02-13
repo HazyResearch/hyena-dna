@@ -82,6 +82,7 @@ class MultiFasta(SequenceDataset):
         num_workers: int = 1,
         limit_fastas: Optional[int] = None,
         fasta_dir: Optional[str] = None,
+        hg38: bool = False,
         *args,
         **kwargs,
     ):
@@ -102,21 +103,27 @@ class MultiFasta(SequenceDataset):
         fasta_dir : Optional[str], optional
             Directory where the FASTA files are located, by default None. Will override the
             directory in the "fasta" column of `file_table`, keeping the rest of the path.
+        hg38 : bool, optional
+            Whether to only use the hg38 reference genome, by default False
         """
         if isinstance(file_table, str):
             fastas = pl.read_csv(file_table, separator="\t")["fasta"]
         else:
             fastas = file_table["fasta"]
 
+        if isinstance(bed, str):
+            bed = pl.read_ipc(bed)
+        
+        if hg38:
+            fastas = fastas.filter(fastas.str.contains("Homo_sapiens"))
+            bed = bed.filter(pl.col('species') == 'Homo_sapiens')
+
         if fasta_dir is not None:
             file_names = fastas.str.split("/").list.get(-1)
             fastas = fasta_dir.rstrip('/') + '/' + file_names
         else:
             fastas = fastas.str.replace(r"/iblm/netapp", r"/home/jovyan", literal=True)
-
-        if isinstance(bed, str):
-            bed = pl.read_ipc(bed)
-
+        
         if limit_fastas is not None:
             fastas = fastas.head(limit_fastas)
 

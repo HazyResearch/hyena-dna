@@ -1,0 +1,74 @@
+# @package _global_
+defaults:
+  - /pipeline: hg38
+  - override /scheduler: cosine_warmup_timm
+
+model:
+  _name_: lm_mamba
+  config:
+    d_model: 128
+    n_layer: 12
+    vocab_size: 12
+    rms_norm: True
+    residual_in_fp32: True
+    fused_add_norm: True
+    pad_vocab_size_multiple: 8
+    ssm_cfg: {}
+
+task:
+  _name_: lm_mamba
+
+trainer:
+  accelerator: gpu
+  devices: 4
+  num_nodes: 1
+  strategy: ddp
+  accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
+  max_epochs: 7
+  precision: bf16  # bf16 only a100
+  gradient_clip_val: 1.0
+
+dataset:
+  _name_: multifasta_v2
+  batch_size: 16
+  max_length: 65_536
+  file_table: /home/jovyan/data4/shared_dir/hyena_dna_collab/training_datasets/cactus_dataset_65536.txt
+  bed: /home/jovyan/data4/shared_dir/hyena_dna_collab/training_datasets/cactus_dataset_exactly_2to16_all_bed.arrow
+  num_workers: 1
+  # limit_fastas: 10
+  # fasta_dir: /home/jovyan/fasta_files
+  __train_len: ${div_up:1_000_000_000, ${.max_length}}
+
+callbacks:
+  multifasta_seqlen_warmup:
+    max_length: ${dataset.max_length}
+    tokens_per_step: 100_000_000
+  model_checkpoint:
+    save_top_k: -1
+    every_n_train_steps: 10000
+
+scheduler:
+  t_in_epochs: False
+  t_initial: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs}}
+  warmup_lr_init: 1e-6
+  warmup_t: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs} * 0.01}
+  lr_min: ${eval:0.1 * ${optimizer.lr}}
+
+optimizer:
+  lr: 8e-3
+  weight_decay: 0.1 
+  betas:
+    - 0.9
+    - 0.95
+
+train:
+  gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
+  seed: 2222
+  global_batch_size: ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}
+
+wandb:
+  tags:
+    - mamba_1.4M
+    - cactus
+  log_model: true
+  project: dna-lm

@@ -6,8 +6,8 @@ defaults:
 model:
   _name_: lm_mamba
   config:
-    d_model: 128
-    n_layer: 12
+    d_model: 256
+    n_layer: 16
     vocab_size: 12
     rms_norm: True
     residual_in_fp32: True
@@ -30,7 +30,7 @@ trainer:
 
 dataset:
   _name_: multifasta_v2
-  batch_size: 16
+  batch_size: 8
   max_length: 65_536
   file_table: /home/jovyan/data4/shared_dir/hyena_dna_collab/training_datasets/cactus_dataset_65536.txt
   bed: /home/jovyan/data4/shared_dir/hyena_dna_collab/training_datasets/cactus_dataset_exactly_2to16_all_bed.arrow
@@ -67,4 +67,8 @@ train:
   global_batch_size: ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}
 
 wandb:
+  tags:
+    - mamba_7M
+    - cactus
   project: dna-lm
+  log_model: true
