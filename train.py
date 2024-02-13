@@ -1,23 +1,18 @@
-import copy
 import os
 import random
 import time
-from functools import partial, wraps
+from functools import wraps
 from typing import Callable, List, Sequence
 
 import hydra
-import numpy as np
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
+import torch.backends
 import wandb
-from hydra.utils import get_original_cwd
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.utilities import rank_zero_only, rank_zero_warn
-from pytorch_lightning.strategies.ddp import DDPStrategy
-from tqdm.auto import tqdm
-from pytorch_lightning.strategies.ddp import DDPStrategy
 
 import src.models.nn.utils as U
 import src.utils as utils
@@ -30,12 +25,12 @@ from src.utils.optim_groups import add_optimizer_hooks
 log = src.utils.train.get_logger(__name__)
 
 # Turn on TensorFloat32 (speeds up large model training substantially)
-import torch.backends
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
-OmegaConf.register_new_resolver('eval', eval)
-OmegaConf.register_new_resolver('div_up', lambda x, y: (x + y - 1) // y)
+OmegaConf.register_new_resolver("eval", eval)
+OmegaConf.register_new_resolver("div_up", lambda x, y: (x + y - 1) // y)
+
 
 # Lots of annoying hacks to get WandbLogger to continuously retry on failure
 class DummyExperiment:
@@ -70,7 +65,6 @@ def rank_zero_experiment(fn: Callable) -> Callable:
 
 
 class CustomWandbLogger(WandbLogger):
-
     def __init__(self, *args, **kwargs):
         """Modified logger that insists on a wandb.init() call and catches wandb's error if thrown."""
 
@@ -116,7 +110,9 @@ class CustomWandbLogger(WandbLogger):
                 # define default x-axis
                 if getattr(self._experiment, "define_metric", None):
                     self._experiment.define_metric("trainer/global_step")
-                    self._experiment.define_metric("*", step_metric="trainer/global_step", step_sync=True)
+                    self._experiment.define_metric(
+                        "*", step_metric="trainer/global_step", step_sync=True
+                    )
 
         return self._experiment
 
@@ -170,9 +166,9 @@ class SequenceLightningModule(pl.LightningModule):
 
         # Instantiate model
         self.model = utils.instantiate(registry.model, self.hparams.model)
-        if (name := self.hparams.train.post_init_hook['_name_']) is not None:
+        if (name := self.hparams.train.post_init_hook["_name_"]) is not None:
             kwargs = self.hparams.train.post_init_hook.copy()
-            del kwargs['_name_']
+            del kwargs["_name_"]
             for module in self.modules():
                 if hasattr(module, name):
                     getattr(module, name)(**kwargs)
@@ -195,7 +191,7 @@ class SequenceLightningModule(pl.LightningModule):
         self.decoder = U.PassthroughSequential(decoder, self.task.decoder)
         self.loss = self.task.loss
         self.loss_val = self.task.loss
-        if hasattr(self.task, 'loss_val'):
+        if hasattr(self.task, "loss_val"):
             self.loss_val = self.task.loss_val
         self.metrics = self.task.metrics
         self.train_torchmetrics = self.task.train_torchmetrics
@@ -203,7 +199,7 @@ class SequenceLightningModule(pl.LightningModule):
         self.test_torchmetrics = self.task.test_torchmetrics
 
     def load_state_dict(self, state_dict, strict=False):
-        if self.hparams.train.pretrained_model_state_hook['_name_'] is not None:
+        if self.hparams.train.pretrained_model_state_hook["_name_"] is not None:
             model_state_hook = utils.instantiate(
                 registry.model_state_hook,
                 self.hparams.train.pretrained_model_state_hook.copy(),
@@ -218,7 +214,14 @@ class SequenceLightningModule(pl.LightningModule):
         return super().load_state_dict(state_dict, strict=strict)
 
     def _check_config(self):
-        assert self.hparams.train.state.mode in [None, "none", "null", "reset", "bptt", "tbptt"]
+        assert self.hparams.train.state.mode in [
+            None,
+            "none",
+            "null",
+            "reset",
+            "bptt",
+            "tbptt",
+        ]
         assert (
             (n := self.hparams.train.state.n_context) is None
             or isinstance(n, int)
@@ -261,7 +264,7 @@ class SequenceLightningModule(pl.LightningModule):
         n_context = self.hparams.train.state.get(key)
 
         # Don't need to do anything if 0 context steps. Make sure there is no state
-        if n_context == 0 and self.hparams.train.state.mode not in ['tbptt']:
+        if n_context == 0 and self.hparams.train.state.mode not in ["tbptt"]:
             self._initialize_state()
             return
 
@@ -280,7 +283,7 @@ class SequenceLightningModule(pl.LightningModule):
             self._memory_chunks.append(batch)
             self._memory_chunks = self._memory_chunks[-n_context:]
 
-        elif self.hparams.train.state.mode == 'tbptt':
+        elif self.hparams.train.state.mode == "tbptt":
             _, _, z = batch
             reset = z["reset"]
             if reset:
@@ -305,10 +308,14 @@ class SequenceLightningModule(pl.LightningModule):
     #     return x, y, w
 
     def forward(self, batch):
-        return self.task.forward(batch, self.encoder, self.model, self.decoder, self._state)
+        return self.task.forward(
+            batch, self.encoder, self.model, self.decoder, self._state
+        )
 
     def step(self, x_t):
-        x_t, *_ = self.encoder(x_t) # Potential edge case for encoders that expect (B, L, H)?
+        x_t, *_ = self.encoder(
+            x_t
+        )  # Potential edge case for encoders that expect (B, L, H)?
         x_t, state = self.model.step(x_t, state=self._state)
         self._state = state
         # x_t = x_t[:, None, ...] # Dummy length
@@ -318,12 +325,11 @@ class SequenceLightningModule(pl.LightningModule):
         return x_t
 
     def _shared_step(self, batch, batch_idx, prefix="train"):
-
         self._process_state(batch, batch_idx, train=(prefix == "train"))
         x, y, w = self.forward(batch)
 
         # Loss
-        if prefix == 'train':
+        if prefix == "train":
             loss = self.loss(x, y, **w)
         else:
             loss = self.loss_val(x, y, **w)
@@ -334,10 +340,14 @@ class SequenceLightningModule(pl.LightningModule):
         metrics = {f"{prefix}/{k}": v for k, v in metrics.items()}
 
         # Calculate torchmetrics
-        torchmetrics = getattr(self, f'{prefix}_torchmetrics')
+        torchmetrics = getattr(self, f"{prefix}_torchmetrics")
         torchmetrics(x, y, loss=loss)
-        
-        log_on_step = 'eval' in self.hparams and self.hparams.eval.get('log_on_step', False) and prefix == 'train'
+
+        log_on_step = (
+            "eval" in self.hparams
+            and self.hparams.eval.get("log_on_step", False)
+            and prefix == "train"
+        )
 
         self.log_dict(
             metrics,
@@ -442,14 +452,18 @@ class SequenceLightningModule(pl.LightningModule):
 
     def configure_optimizers(self):
         # Set zero weight decay for some params
-        if 'optimizer_param_grouping' in self.hparams.train:
-            add_optimizer_hooks(self.model, **self.hparams.train.optimizer_param_grouping)
+        if "optimizer_param_grouping" in self.hparams.train:
+            add_optimizer_hooks(
+                self.model, **self.hparams.train.optimizer_param_grouping
+            )
 
         # Normal parameters
         all_params = list(self.parameters())
         params = [p for p in all_params if not hasattr(p, "_optim")]
 
-        optimizer = utils.instantiate(registry.optimizer, self.hparams.optimizer, params)
+        optimizer = utils.instantiate(
+            registry.optimizer, self.hparams.optimizer, params
+        )
 
         del self.hparams.optimizer._name_
 
@@ -457,7 +471,8 @@ class SequenceLightningModule(pl.LightningModule):
         hps = [getattr(p, "_optim") for p in all_params if hasattr(p, "_optim")]
         hps = [
             # dict(s) for s in set(frozenset(hp.items()) for hp in hps)
-            dict(s) for s in sorted(list(dict.fromkeys(frozenset(hp.items()) for hp in hps)))
+            dict(s)
+            for s in sorted(list(dict.fromkeys(frozenset(hp.items()) for hp in hps)))
             # dict(s) for s in dict.fromkeys(frozenset(hp.items()) for hp in hps)
         ]  # Unique dicts
         print("Hyperparameter groups", hps)
@@ -469,10 +484,10 @@ class SequenceLightningModule(pl.LightningModule):
 
         ### Layer Decay ###
 
-        if self.hparams.train.layer_decay['_name_'] is not None:
+        if self.hparams.train.layer_decay["_name_"] is not None:
             get_num_layer = utils.instantiate(
                 registry.layer_decay,
-                self.hparams.train.layer_decay['_name_'],
+                self.hparams.train.layer_decay["_name_"],
                 partial=True,
             )
 
@@ -486,17 +501,20 @@ class SequenceLightningModule(pl.LightningModule):
                 # Add to layer wise group
                 if layer_id not in layer_wise_groups:
                     layer_wise_groups[layer_id] = {
-                        'params': [],
-                        'lr': None,
-                        'weight_decay': self.hparams.optimizer.weight_decay
+                        "params": [],
+                        "lr": None,
+                        "weight_decay": self.hparams.optimizer.weight_decay,
                     }
-                layer_wise_groups[layer_id]['params'].append(p)
+                layer_wise_groups[layer_id]["params"].append(p)
 
-                if layer_id > num_max_layers: num_max_layers = layer_id
+                if layer_id > num_max_layers:
+                    num_max_layers = layer_id
 
             # Update lr for each layer
             for layer_id, group in layer_wise_groups.items():
-                group['lr'] = self.hparams.optimizer.lr * (self.hparams.train.layer_decay.decay ** (num_max_layers - layer_id))
+                group["lr"] = self.hparams.optimizer.lr * (
+                    self.hparams.train.layer_decay.decay ** (num_max_layers - layer_id)
+                )
 
             # Reset the torch optimizer's param groups
             optimizer.param_groups = []
@@ -575,6 +593,7 @@ class SequenceLightningModule(pl.LightningModule):
 
 ### pytorch-lightning utils and entrypoint ###
 
+
 def create_trainer(config, **kwargs):
     callbacks: List[pl.Callback] = []
     logger = None
@@ -609,12 +628,12 @@ def create_trainer(config, **kwargs):
             print(f"\tStage {i}: {e['resolution']} @ {e['epochs']} epochs")
 
     # Configure ddp automatically
-    n_devices = config.trainer.get('devices', 1)
+    n_devices = config.trainer.get("devices", 1)
     if isinstance(n_devices, Sequence):  # trainer.devices could be [1, 3] for example
         n_devices = len(n_devices)
-    if n_devices > 1 and config.trainer.get('strategy', None) is None:
+    if n_devices > 1 and config.trainer.get("strategy", None) is None:
         config.trainer.strategy = dict(
-            _target_='pytorch_lightning.strategies.DDPStrategy',
+            _target_="pytorch_lightning.strategies.DDPStrategy",
             find_unused_parameters=False,
             gradient_as_bucket_view=True,  # https://pytorch-lightning.readthedocs.io/en/stable/advanced/advanced_gpu.html#ddp-optimizations
         )
@@ -630,18 +649,28 @@ def create_trainer(config, **kwargs):
         accumulate_grad_schedule = {}  # contains the accumulate_grad_batches schedule to init the trainer
 
         for stage in config.callbacks.seqlen_warmup_reload.stage_params:
-            batch_size = stage['batch_size']  # curr batch size at this stage
-            grad_accum_factor = config.train.global_batch_size // batch_size  # grad accum factor for this stage
-            accumulate_grad_schedule[epochs_cume] = grad_accum_factor  # set the grad accum factor for this stage
-            epochs_cume += stage['epochs']  # increment epochs_cume for next stage
-        trainer_config_dict['accumulate_grad_batches'] = accumulate_grad_schedule  # set the accumulate_grad_batches schedule
-        trainer_config_dict.pop('_target_')  # only hydra uses this to instantiate
+            batch_size = stage["batch_size"]  # curr batch size at this stage
+            grad_accum_factor = (
+                config.train.global_batch_size // batch_size
+            )  # grad accum factor for this stage
+            accumulate_grad_schedule[
+                epochs_cume
+            ] = grad_accum_factor  # set the grad accum factor for this stage
+            epochs_cume += stage["epochs"]  # increment epochs_cume for next stage
+        trainer_config_dict[
+            "accumulate_grad_batches"
+        ] = accumulate_grad_schedule  # set the accumulate_grad_batches schedule
+        trainer_config_dict.pop("_target_")  # only hydra uses this to instantiate
         # Set DDPStrategy to work with pl.Trainer
-        config.trainer.pop('strategy')
-        trainer_config_dict['strategy'] = DDPStrategy(find_unused_parameters=False, gradient_as_bucket_view=True)
+        config.trainer.pop("strategy")
+        trainer_config_dict["strategy"] = DDPStrategy(
+            find_unused_parameters=False, gradient_as_bucket_view=True
+        )
         trainer = pl.Trainer(**trainer_config_dict, callbacks=callbacks, logger=logger)
     else:
-        trainer = hydra.utils.instantiate(config.trainer, callbacks=callbacks, logger=logger)    
+        trainer = hydra.utils.instantiate(
+            config.trainer, callbacks=callbacks, logger=logger
+        )
 
     return trainer
 
@@ -674,11 +703,8 @@ def train(config):
         trainer.test(model)
 
 
-
-
 @hydra.main(config_path="configs", config_name="config.yaml")
 def main(config: OmegaConf):
-
     # Process config:
     # - register evaluation resolver
     # - filter out keys used only for interpolation

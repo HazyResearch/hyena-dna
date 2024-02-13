@@ -57,6 +57,7 @@ callbacks = {
     "seqlen_warmup": "src.callbacks.seqlen_warmup.SeqlenWarmup",
     "seqlen_warmup_reload": "src.callbacks.seqlen_warmup_reload.SeqlenWarmupReload",
     "gpu_affinity": "src.callbacks.gpu_affinity.GpuAffinity",
+    "multifasta_seqlen_warmup": "src.callbacks.multifasta_seqlen_warmup.SeqLenWarmup",
 }
 
 model_state_hook = {
