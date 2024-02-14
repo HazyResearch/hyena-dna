@@ -31,7 +31,7 @@ class SeqLenWarmup(lit.Callback):
             self.og_beds = dm.beds
             self.max_tokens_per_batch = int(dm.batch_size * self.lengths[-1])
 
-        current_length = int(self.lengths[self.step])
+        current_length = int(self.lengths[min(self.step, len(self.lengths)-1)])
         dm.batch_size = self.max_tokens_per_batch // current_length
         pl_module.log("seqlen_warmup_step", self.step)
         pl_module.log("seqlen_warmup_length", current_length)
