@@ -334,7 +334,81 @@ python -m evals/instruction_tuned_genomics
 
 ### Chromatin Profile
 
-You'll need to see the [DeepSea](https://www.nature.com/articles/nmeth.3547) and [repo](https://github.com/FunctionLab/sei-framework) for info how to download and preprocess.
+You'll need to see the [DeepSea](https://www.nature.com/articles/nmeth.3547) and [repo](https://github.com/FunctionLab/sei-framework) for info how to download and preprocess. 
+
+For a more detailed example look below
+
+1.  Git clone or Download the following [buildling-deepsea repo](https://github.com/jakublipinski/build-deepsea-training-dataset).
+
+2.  Git clone or Download the [sei framework library](https://github.com/FunctionLab/sei-framework.git)
+
+3.  Step into the sei framework and perform the setup 
+
+```
+sh ./download_data.sh.  
+```
+
+This should download data into the resources folder.
+
+4.  Next step into the build-deepsea-training-dataset. Follow the instructions in the repo to build the dataset in debugging mode, which will include the instructions below. The hg19 path will need to be specifically given a path to the given fa file.  You should include the hg19 file you downloaded in step 3 in resources, specifically the FA hg19 file from the sei framework.  You can modify other parameters as well for further customization.
+
+	A. 
+  ```
+  git clone git@github.com:jakublipinski/build-deepsea-training-dataset.git
+	   cd build-deepsea-training-dataset/data
+	   xargs -L 1 curl -C - -O -L < deepsea_data.urls
+	   find ./ -name \*.gz -exec gunzip {} \;
+	   cd ..
+  ```
+	
+  B.
+  ```
+    mkdir out
+
+		python build.py \
+		--metadata_file data/deepsea_metadata.tsv \
+		--pos data/allTFs.pos.bed \
+		--beds_folder data/ \
+		--hg19 [path to FA file] \
+		--train_size 2200000 \	
+		--valid_size 4000 \
+		--train_filename out/train.mat \
+		--valid_filename out/valid.mat \
+		--test_filename out/test.mat \
+		--train_data_filename out/train_data.npy \
+		--train_labels_filename out/train_labels.npy \
+		--valid_data_filename out/valid_data.npy \
+		--valid_labels_filename out/valid_labels.npy \
+		--test_data_filename out/test_data.npy \
+		--test_labels_filename out/test_labels.npy \
+		--save_debug_info True
+  ```
+
+5.  Run the following Python Code to create your coordinate target files, youll need to pass in the path to your directory for, please make a note of their location for step 8
+	
+```
+python ./create_coords.py
+```
+
+
+6.  Now step into the Sei Framework and follow the steps in chromatin profile prediction and specifically run the following command
+
+	A. 
+  ```
+  sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda
+  ```
+
+	The input-file will be the bed or fasta input file you download in step 3 which should be in the resources directory within the sei framework.  For the genome, this example is geared towards hg19.  You can do hg38 as well but you will need to make changes to earlier steps.  Output directory is your choice
+
+6.  This should create a folder called chromatin-profiles-hdf5 in your output directory along with several other files.
+
+7.  Take your coordinate files from step 5 and copy them to the chromatin-profiles-hdf5 folder
+
+8.  Now go back to hyena dna and, assuming you have already setup hyena dna, perform the following
+
+	A. python -m train wandb=null experiment=hg19/chromatin_profile dataset.ref_genome_path=/path/to/fasta/hg19.ml.fa dataset.data_path=/path/to/chromatin_profile dataset.ref_genome_version=hg19
+
+	B.  For paths to chromatin files, those will be the paths to the chromatin-profiles-hdf5.  For the hg19 fa files, those can be in resources or found in your output directory with the chromatin profile.  For genome version and experiment, this is for the hg19 experiment
 
 
 example chromatin profile run:   
