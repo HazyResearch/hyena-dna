@@ -404,12 +404,6 @@ python ./create_coords.py
 
 8.  Now go back to hyena dna and, assuming you have already setup hyena dna, perform the following.
 
-	A. python -m train wandb=null experiment=hg19/chromatin_profile dataset.ref_genome_path=/path/to/fasta/hg19.ml.fa dataset.data_path=/path/to/chromatin_profile dataset.ref_genome_version=hg19
-
-	B.  For paths to chromatin files, those will be the paths to the chromatin-profiles-hdf5.  For the hg19 fa files, those can be in resources or found in your output directory with the chromatin profile.  For genome version and experiment, this is for the hg19 experiment.
-
-
-example chromatin profile run:   
 ```
 python -m train wandb=null experiment=hg38/chromatin_profile dataset.ref_genome_path=/path/to/fasta/hg38.ml.fa dataset.data_path=/path/to/chromatin_profile dataset.ref_genome_version=hg38
 ```
@@ -417,6 +411,8 @@ python -m train wandb=null experiment=hg38/chromatin_profile dataset.ref_genome_
 - `dataset.ref_genome_path`  # path to a human ref genome file (the input sequences)
 - `dataset.ref_genome_version`  # the version of the ref genome (hg38 or hg19, we use hg38)
 - `dataset.data_path`  # path to the labels of the dataset
+	
+  For paths to chromatin files, those will be the paths to the chromatin-profiles-hdf5.  For the hg19 fa files, those can be in resources or found in your output directory with the chromatin profile.  For genome version and experiment, this is for the hg19 experiment.
 
 
 ### Species Classification
