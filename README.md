@@ -352,7 +352,7 @@ This should download data into the resources folder.
 
 4.  Next step into the build-deepsea-training-dataset. Follow the instructions in the repo to build the dataset in debugging mode, which will include the instructions below. The hg19 path will need to be specifically given a path to the given fa file.  You should include the hg19 file you downloaded in step 3 in resources, specifically the FA hg19 file from the sei framework.  You can modify other parameters as well for further customization.
 
-	A. 
+	
   ```
   git clone git@github.com:jakublipinski/build-deepsea-training-dataset.git
 	   cd build-deepsea-training-dataset/data
@@ -360,8 +360,7 @@ This should download data into the resources folder.
 	   find ./ -name \*.gz -exec gunzip {} \;
 	   cd ..
   ```
-	
-  B.
+
   ```
     mkdir out
 
@@ -393,9 +392,8 @@ python ./create_coords.py
 
 6.  Now step into the Sei Framework and follow the steps in chromatin profile prediction and specifically run the following command
 
-	A. 
   ```
-  sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda
+    sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda
   ```
 
 	The input-file will be the bed or fasta input file you download in step 3 which should be in the resources directory within the sei framework.  For the genome, this example is geared towards hg19.  You can do hg38 as well but you will need to make changes to earlier steps.  Output directory is your choice
