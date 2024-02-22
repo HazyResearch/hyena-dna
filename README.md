@@ -340,9 +340,9 @@ For a more detailed example look below
 
 1.  Git clone or Download the following [buildling-deepsea repo](https://github.com/jakublipinski/build-deepsea-training-dataset).
 
-2.  Git clone or Download the [sei framework library](https://github.com/FunctionLab/sei-framework.git)
+2.  Git clone or Download the [sei framework library](https://github.com/FunctionLab/sei-framework.git).
 
-3.  Step into the sei framework and perform the setup 
+3.  Step into the sei framework and perform the setup. 
 
 ```
 sh ./download_data.sh.  
@@ -383,28 +383,28 @@ This should download data into the resources folder.
 		--save_debug_info True
   ```
 
-5.  Run the following Python Code to create your coordinate target files, youll need to pass in the path to your directory for, please make a note of their location for step 8
+5.  Run the following Python Code to create your coordinate target files, youll need to pass in the path to your directory for, please make a note of their location for step 8.
 	
 ```
 python ./create_coords.py
 ```
 
 
-6.  Now step into the Sei Framework and follow the steps in chromatin profile prediction and specifically run the following command
+6.  Now step into the Sei Framework and follow the steps in chromatin profile prediction and specifically run the following command below. 	The input-file will be the bed or fasta input file you download in step 3 which should be in the resources directory within the sei framework.  For the genome, this example is geared towards hg19.  You can do hg38 as well but you will need to make changes to earlier steps.  Output directory is your choice.
 
   ```sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda```
 
-	The input-file will be the bed or fasta input file you download in step 3 which should be in the resources directory within the sei framework.  For the genome, this example is geared towards hg19.  You can do hg38 as well but you will need to make changes to earlier steps.  Output directory is your choice
+
 
 6.  This should create a folder called chromatin-profiles-hdf5 in your output directory along with several other files.
 
-7.  Take your coordinate files from step 5 and copy them to the chromatin-profiles-hdf5 folder
+7.  Take your coordinate files from step 5 and copy them to the chromatin-profiles-hdf5 folder.
 
-8.  Now go back to hyena dna and, assuming you have already setup hyena dna, perform the following
+8.  Now go back to hyena dna and, assuming you have already setup hyena dna, perform the following.
 
 	A. python -m train wandb=null experiment=hg19/chromatin_profile dataset.ref_genome_path=/path/to/fasta/hg19.ml.fa dataset.data_path=/path/to/chromatin_profile dataset.ref_genome_version=hg19
 
-	B.  For paths to chromatin files, those will be the paths to the chromatin-profiles-hdf5.  For the hg19 fa files, those can be in resources or found in your output directory with the chromatin profile.  For genome version and experiment, this is for the hg19 experiment
+	B.  For paths to chromatin files, those will be the paths to the chromatin-profiles-hdf5.  For the hg19 fa files, those can be in resources or found in your output directory with the chromatin profile.  For genome version and experiment, this is for the hg19 experiment.
 
 
 example chromatin profile run:   
