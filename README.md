@@ -392,7 +392,9 @@ python ./create_coords.py
 
 6.  Now step into the Sei Framework and follow the steps in chromatin profile prediction and specifically run the following command below. 	The input-file will be the bed or fasta input file you download in step 3 which should be in the resources directory within the sei framework.  For the genome, this example is geared towards hg19.  You can do hg38 as well but you will need to make changes to earlier steps.  Output directory is your choice.
 
-  ```sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda```
+  ```
+  sh 1_sequence_prediction.sh <input-file> <genome> <output-dir> --cuda
+  ```
 
 
 
