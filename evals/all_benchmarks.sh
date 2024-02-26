@@ -1,5 +1,7 @@
 set -e
 
+python -m train wandb.job_type=eval experiment=hg38/gvl_hg38_mamba trainer.limit_train_batches=1 optimizer.lr=1e-10 trainer.max_epochs=1 "$@"
+
 python -m train wandb.job_type=eval experiment=hg38/genomic_benchmark_mamba dataset.dataset_name=demo_coding_vs_intergenomic_seqs "$@"
 python -m train wandb.job_type=eval experiment=hg38/genomic_benchmark_mamba dataset.dataset_name=demo_human_or_worm "$@"
 python -m train wandb.job_type=eval experiment=hg38/genomic_benchmark_mamba dataset.dataset_name=dummy_mouse_enhancers_ensembl "$@"
@@ -25,4 +27,4 @@ python -m train wandb.job_type=eval experiment=hg38/nucleotide_transformer_mamba
 python -m train wandb.job_type=eval experiment=hg38/nucleotide_transformer_mamba  dataset.dataset_name=splice_sites_acceptor "$@"
 python -m train wandb.job_type=eval experiment=hg38/nucleotide_transformer_mamba  dataset.dataset_name=splice_sites_donor "$@"
 
-python -m train wandb.job_type=eval experiment=hg38/chromatin_profile_mamba "$@"
+# python -m train wandb.job_type=eval experiment=hg38/chromatin_profile_mamba "$@"

@@ -7,8 +7,8 @@ model:
   _name_: lm_mamba
   #class: mamba_ssm.models.mixer_seq_simple.MambaLMHeadModel
   config:
-    d_model: 512
-    n_layer: 24
+    d_model: 128
+    n_layer: 12
     vocab_size: 12
     rms_norm: True
     residual_in_fp32: True
