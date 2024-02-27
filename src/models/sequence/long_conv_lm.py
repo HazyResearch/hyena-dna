@@ -665,7 +665,7 @@ def load_backbone(model, state_dict, freeze_backbone=False, ignore_head=True):
             print("found decoder key / parameter, load from scratch", key)
             used_params = model_new_params_dict[key]
         else:
-            print("key: shape MATCH, loading", key)  # load matched weights
+            #print("key: shape MATCH, loading", key)  # load matched weights
             used_params = loaded_params
 
         # we need to pass back a state dict with the '.model' prefix!!!!!

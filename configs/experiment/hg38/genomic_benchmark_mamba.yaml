@@ -81,3 +81,10 @@ train:
   pretrained_model_state_hook:
     _name_: load_backbone
     freeze_backbone: false  # seems to work much better if false (ie finetune entire model)
+
+wandb:
+    log_model: False
+callbacks:
+    model_checkpoint:
+        save_top_k: 0
+        save_last: False
