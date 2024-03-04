@@ -29,6 +29,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 OmegaConf.register_new_resolver("eval", eval)
+OmegaConf.register_new_resolver("min", min)
 OmegaConf.register_new_resolver("div_up", lambda x, y: (x + y - 1) // y)
 
 
