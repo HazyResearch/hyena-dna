@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torchvision
 from einops import rearrange
 from einops.layers.torch import Rearrange
 from src.utils import is_list, permutations
@@ -151,39 +150,6 @@ class SequenceResolutionCollateMixin(DefaultCollateMixin):
         return *return_value, {"rate": resolution}
 
     collate_args = ["resolution"]
-
-
-class ImageResolutionCollateMixin(SequenceResolutionCollateMixin):
-    """self.collate_fn(resolution, img_size) produces a collate function that resizes inputs to size img_size/resolution"""
-
-    _interpolation = torchvision.transforms.InterpolationMode.BILINEAR
-    _antialias = True
-
-    @classmethod
-    def _collate_callback(cls, x, resolution=None, img_size=None, channels_last=True):
-        if x.ndim < 4:
-            return super()._collate_callback(x, resolution=resolution)
-        if img_size is None:
-            x = super()._collate_callback(x, resolution=resolution)
-        else:
-            x = rearrange(x, "b ... c -> b c ...") if channels_last else x
-            _size = round(img_size / resolution)
-            x = torchvision.transforms.functional.resize(
-                x,
-                size=[_size, _size],
-                interpolation=cls._interpolation,
-                antialias=cls._antialias,
-            )
-            x = rearrange(x, "b c ... -> b ... c") if channels_last else x
-        return x
-
-    @classmethod
-    def _return_callback(
-        cls, return_value, resolution=None, img_size=None, channels_last=True
-    ):
-        return *return_value, {"rate": resolution}
-
-    collate_args = ["resolution", "img_size", "channels_last"]
 
 
 # class SequenceDataset(LightningDataModule):
