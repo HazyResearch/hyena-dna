@@ -71,7 +71,7 @@ scheduler:
   lr_min: ${eval:0.1 * ${optimizer.lr}}
 
 optimizer:
-  lr: 8e-3
+  lr: 2e-3
   weight_decay: 0.1 
   betas:
     - 0.9
@@ -84,7 +84,7 @@ train:
 
 wandb:
   tags:
-    - mamba_1.4M
+    - hyena_1.4M
     - hg38
   log_model: true
   project: dna-lm
