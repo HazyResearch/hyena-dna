@@ -274,12 +274,6 @@ class ResolutionSequenceDataset(SequenceDataset, SequenceResolutionCollateMixin)
         )
 
 
-class ImageResolutionSequenceDataset(
-    ResolutionSequenceDataset, ImageResolutionCollateMixin
-):
-    pass
-
-
 # Registry for dataloader class
 loader_registry = {
     None: torch.utils.data.DataLoader,  # default case
