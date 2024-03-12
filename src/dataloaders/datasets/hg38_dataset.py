@@ -214,7 +214,7 @@ class HG38Dataset(torch.utils.data.Dataset):
             seq = self.tokenizer(
                 seq,
                 padding="max_length",
-                max_length=self.pad_max_length,
+                max_length=self.max_length,
                 truncation=True,
                 add_special_tokens=False,
             )  # add cls and eos token (+2)

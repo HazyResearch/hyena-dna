@@ -182,27 +182,21 @@ In general, get comfortable with the configs in `configs/experiments/hg38`, all 
 
 First step is download the Human Reference Genome data. It's comprised of 2 files, 1 with all the sequences (the .fasta file), and with the intervals we use (.bed file).
 
-However, you'll need to have a GCP account to download the exact files we used (from the Enformer), and it cost a little to download. At some point we'll try to upload somewhere to share that data.
-
 The file structure should look like
 ```
 data
 |-- hg38/
     |-- hg38.ml.fa
-    |-- hg38.ml.fa.fai
     |-- human-sequences.bed
 
 ```
 
-- Download fasta (.fa format) file (of the entire human genome) into hyena-dna/data/hg38.  ~24 chromosomes in the whole genome (merged into 1 file), each chromosome is a continuous sequence, basically
+- Download fasta (.fa format) file (of the entire human genome) into hyena-dna/data/hg38.  ~24 chromosomes in the whole genome (merged into 1 file), each chromosome is a continuous sequence, basically. Then download the .bed file with sequence intervals (contains chromosome name, start, end, split, which then allow you to retrieve from the fasta file)  
 
 ```
-gsutil -u hai-gcp-hippo cp gs://basenji_barnyard/hg38.ml.fa.gz ./ && gunzip hg38.ml.fa.gz
-```
-
-- download the .bed file with sequence intervals (contains chromosome name, start, end, split, which then allow you to retrieve from the fasta file)  
-```
-gsutil -u hai-gcp-hippo cp gs://basenji_barnyard/data/human/sequences.bed ./human-sequences.bed
+mkdir -p data/hg38/
+curl https://storage.googleapis.com/basenji_barnyard2/hg38.ml.fa.gz > data/hg38/hg38.ml.fa.gz
+curl https://storage.googleapis.com/basenji_barnyard2/sequences_human.bed > data/hg38/human-sequences.bed
 ```
 
 launch pretraining run  
@@ -613,6 +607,14 @@ Things to note:
 
 Train dataset will change during training, but the test set will always be fixed.  The test len/batch size is set the normal way in your command launch, ie, `dataset.batch_size`, `dataset`.
 
+### Getting logits from pretrained model
+<a name="logits"></a>
+
+Here's a simple [script](https://github.com/HazyResearch/hyena-dna/blob/main/evals/hg38_inference.py) to get the logits from a pretrained model.
+
+This isn't automated, so you'll need to download the weights manually from HF, and place them locally somewhere. You need the model head to get the logits.
+
+Difference from the [Huggingface](https://github.com/HazyResearch/hyena-dna/blob/main/huggingface.py): this script is meant for getting embeddings easily, which doesn't use the model head. We don't have a current use case for the logits yet, so there's some extra steps if you want those.
 
 ### Experimental
 
@@ -639,6 +641,7 @@ In practice, for short range tasks with not a lot padding, we noticed it didn't 
 - There's an experimential bidirectional option added.  See [Experimental](#Experimental).
 - We added an option to pass a mask and ignore padded tokens for downstream tasks.  See [Experimental](#Experimental).
 - Added some tips on [pretraining](#pretraining_custom) your on your own data.
+- Example to get [logits](#logits) from pretrained model.
 
 
 ## Citation
