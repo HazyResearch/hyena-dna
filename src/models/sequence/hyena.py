@@ -201,7 +201,8 @@ class HyenaFilter(OptimModule):
         if self.use_bias:
             self.bias = nn.Parameter(torch.randn(self.d_model))
         else:
-            self.bias = torch.zeros(self.d_model)
+            bias = torch.zeros(self.d_model)
+            self.register_buffer('bias', bias)
         self.dropout = nn.Dropout(dropout)
         self.bidirectional = bidirectional
 
