@@ -28,9 +28,9 @@ except ImportError:
     ColumnParallelLinear = None
 
 try:
-    from flash_attn.ops.layer_norm import dropout_add_layer_norm
+    from flash_attn.ops.triton.layer_norm import layer_norm_fn
 except ImportError:
-    dropout_add_layer_norm = None
+    layer_norm_fn = None
 
 from src.utils import instantiate
 import src.utils.registry as registry
@@ -301,8 +301,8 @@ class LMBackbone(nn.Module):
         # nn.Dropout probabilities are changed.
         # This is for performance reason: we can fuse dropout + add + layer_norm.
         self.fused_dropout_add_ln = fused_dropout_add_ln
-        if self.fused_dropout_add_ln and dropout_add_layer_norm is None:
-            raise ImportError("dropout_add_layer_norm is not installed")
+        if self.fused_dropout_add_ln and layer_norm_fn is None:
+            raise ImportError("Triton is not installed")
 
         self.layers = nn.ModuleList(
             [
@@ -384,15 +384,14 @@ class LMBackbone(nn.Module):
             hidden_states = self.ln_f(residual.to(dtype=self.ln_f.weight.dtype))
         else:
             # Set prenorm=False here since we don't need the residual
-            hidden_states = dropout_add_layer_norm(
+            hidden_states = layer_norm_fn(
                 hidden_states,
-                residual,
                 self.ln_f.weight,
                 self.ln_f.bias,
-                self.drop_f.p if self.training else 0.0,
-                self.ln_f.eps,
+                residual=residual,
+                eps=self.ln_f.eps,
+                dropout_p=self.drop_f.p if self.training else 0.0,
                 prenorm=False,
-                residual_in_fp32=self.residual_in_fp32,
             )
         return hidden_states
 
