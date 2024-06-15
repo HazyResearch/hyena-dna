@@ -48,6 +48,9 @@ There's a few way to use these HuggingFace weights, all with different flavors:
 2. [Pytorch Lighting in this repo](#loadweights)
 3. [standalone](#standalone)
 
+Thanks to friends at HuggingFace, we also have versions of these checkpoints
+that can be loaded utilizing the transformers library `AutoModel` and `AutoTokenizer` classes! This makes it super easy to load HyenaDNA models to use in your own codebase. You can access our collection of these checkpoints [here!](https://huggingface.co/collections/LongSafari/hyenadna-models-654d0cbbe113b04ba5a0f638)
+
 ## Dependencies
 <a name="dependencies"></a>
 
