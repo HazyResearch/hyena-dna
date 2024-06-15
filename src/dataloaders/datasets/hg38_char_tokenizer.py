@@ -4,6 +4,7 @@ From: https://github.com/dariush-bahrami/character-tokenizer/blob/master/charact
 CharacterTokenzier for Hugging Face Transformers.
 This is heavily inspired from CanineTokenizer in transformers package.
 """
+
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,13 @@ from transformers.tokenization_utils import AddedToken, PreTrainedTokenizer
 
 
 class CharacterTokenizer(PreTrainedTokenizer):
-    def __init__(self, characters: Sequence[str], model_max_length: int, padding_side: str='left', **kwargs):
+    def __init__(
+        self,
+        characters: Sequence[str],
+        model_max_length: int,
+        padding_side: str = "left",
+        **kwargs
+    ):
         """Character tokenizer for Hugging Face transformers.
         Args:
             characters (Sequence[str]): List of desired characters. Any character which
@@ -41,6 +48,18 @@ class CharacterTokenizer(PreTrainedTokenizer):
 
         mask_token = AddedToken("[MASK]", lstrip=True, rstrip=False)
 
+        self._vocab_str_to_int = {
+            "[CLS]": 0,
+            "[SEP]": 1,
+            "[BOS]": 2,
+            "[MASK]": 3,
+            "[PAD]": 4,
+            "[RESERVED]": 5,
+            "[UNK]": 6,
+            **{ch: i + 7 for i, ch in enumerate(characters)},
+        }
+        self._vocab_int_to_str = {v: k for k, v in self._vocab_str_to_int.items()}
+
         super().__init__(
             bos_token=bos_token,
             eos_token=sep_token,
@@ -55,17 +74,8 @@ class CharacterTokenizer(PreTrainedTokenizer):
             **kwargs,
         )
 
-        self._vocab_str_to_int = {
-            "[CLS]": 0,
-            "[SEP]": 1,
-            "[BOS]": 2,
-            "[MASK]": 3,
-            "[PAD]": 4,
-            "[RESERVED]": 5,
-            "[UNK]": 6,
-            **{ch: i + 7 for i, ch in enumerate(characters)},
-        }
-        self._vocab_int_to_str = {v: k for k, v in self._vocab_str_to_int.items()}
+    def get_vocab(self) -> Dict[str, int]:
+        return self._vocab_str_to_int
 
     @property
     def vocab_size(self) -> int:
