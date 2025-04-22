@@ -5,7 +5,7 @@
 ## Important links:  
 - [arxiv](https://arxiv.org/abs/2306.15794)  
 - [blog](https://hazyresearch.stanford.edu/blog/2023-06-29-hyena-dna)
-- [colab](https://colab.research.google.com/drive/1wyVEQd4R3HYLTUOXEEQmp_I8aNC_aLhL?usp=sharing)  
+- [colab](https://colab.research.google.com/drive/1xy89azhrhvEJSbWCnHv6Y9vA2Gpj-6xY)  
 - [huggingface](https://huggingface.co/LongSafari)
 - [discord](https://discord.gg/RJxUq4mzmW)
 - [youtube (talk)](https://youtu.be/haSkAC1fPX0?si=IUMmo_iGZ6SK1DBX)
@@ -155,7 +155,7 @@ Let's describe this.
 <a name="loadweights"></a>
 
 There are 2 ways to use the pretrained weights from HuggingFace:
-1. HuggingFace integration (best example), via [colab](https://colab.research.google.com/drive/1wyVEQd4R3HYLTUOXEEQmp_I8aNC_aLhL?usp=sharing)
+1. HuggingFace integration (best example), via [colab](https://colab.research.google.com/drive/1xy89azhrhvEJSbWCnHv6Y9vA2Gpj-6xY)
 2. Pytorch Lightning in this repo:
 - You can clone the HuggingFace repo, and pass the ckpt path to Pytorch Lighting (the .ckpt is from Lightning actually)
 - the flag is `train.pretrained_model_path=/path/to/ckpt`
