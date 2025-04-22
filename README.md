@@ -18,7 +18,7 @@ The repo is a work in progress, but we're very excited to get this in the hands 
 
 This repo is best suited for those who want to pretrain a HyenaDNA model, or try one of the downstream tasks from the paper.
 
-For the easiest entry point though, check out the HyenaDNA **[colab](https://colab.research.google.com/drive/1wyVEQd4R3HYLTUOXEEQmp_I8aNC_aLhL?usp=sharing)**, a self contained notebook that is Huggingface integrated. You'll be able to load pretrained weights and fine-tune on the GenomicBenchmarks dataset. Also, you'll be able to do inference and get embeddings on DNA sequences up to 450k nucleotides on the free tier. For 1 million long DNA sequences, you can get an A100 on Colab (paid tier), or run the notebook on your own machine.
+For the easiest entry point though, check out the HyenaDNA **[colab](https://colab.research.google.com/drive/1xy89azhrhvEJSbWCnHv6Y9vA2Gpj-6xY)**, a self contained notebook that is Huggingface integrated. You'll be able to load pretrained weights and fine-tune on the GenomicBenchmarks dataset. Also, you'll be able to do inference and get embeddings on DNA sequences up to 450k nucleotides on the free tier. For 1 million long DNA sequences, you can get an A100 on Colab (paid tier), or run the notebook on your own machine.
 
   
 Credit: much of the code is forked and extended from [S4](https://github.com/HazyResearch/state-spaces) and [Safari](https://github.com/HazyResearch/safari).
