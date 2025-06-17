@@ -68,7 +68,7 @@ conda create -n hyena-dna python=3.8
 - The repo is developed with Pytorch 1.13, using cuda 11.7
 
 ```
-conda install pytorch==1.13.0 torchvision==0.14.0 torchaudio==0.13.0 pytorch-cuda=11.7 -c pytorch -c nvidia
+conda install pytorch==1.13.0 torchvision==0.14.0 torchaudio==0.13.0 pytorch-cuda=11.7 mkl==2024.0 -c pytorch -c nvidia
 ```
 
 - install requirements:
